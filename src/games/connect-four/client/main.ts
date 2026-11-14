@@ -1,14 +1,17 @@
-// Connect Four's entry: pass-and-play on one phone, or solo against the
-// computer. A chip hovers over the aimed column; left and right move it and
-// Drop lets it fall. Tapping a column aims there, and tapping the aimed column
-// again drops. The game saves after every move, so a reload or a trip to the
-// menu picks up where it left off, the computer's pending move included.
+// Connect Four's entry: pass-and-play on one phone, solo against the
+// computer, or online with a friend in a party. A chip hovers over the aimed
+// column; left and right move it and Drop lets it fall. Tapping a column aims
+// there, and tapping the aimed column again drops. Offline, the game saves
+// after every move, so a reload or a trip to the menu picks up where it left
+// off, the computer's pending move included. Online, the host on the server
+// holds the game (core/host.ts) and this phone draws what it says.
 
 import "./styles.css";
 import screens from "./screens.html?raw";
 
+import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
-import type { Session } from "../../../shell/session.ts";
+import type { GameSession } from "../../../shell/session.ts";
 import { store } from "../../../shell/storage.ts";
 import { LEVELS, computerMove, newSeed, type Level } from "../core/ai.ts";
 import {
@@ -23,6 +26,7 @@ import {
   type Board,
   type Seat,
 } from "../core/board.ts";
+import type { FourClientMessage, FourMatch, FourServerMessage } from "../core/protocol.ts";
 
 document.body.insertAdjacentHTML("beforeend", screens);
 
@@ -57,12 +61,32 @@ let seed = 0;
 let col = 3;
 /** True while a chip is falling: input waits for it to land. */
 let busy = false;
+/** Bumped by every new game, so a chip still falling from the last one is not put on this board. */
+let gameId = 0;
 /** True on the computer's turn: input waits until its chip has landed. */
 let thinking = false;
 let thinkTimer = 0;
 
+/** Online: the party's channel for this game, and this phone's seat (red is 0, yellow 1). */
+let channel: Channel<FourServerMessage, FourClientMessage> | null = null;
+let me: Seat = 0;
+/** Online: the last match the host sent. The board catches up with it once any falling chip lands. */
+let latest: FourMatch | null = null;
+/** Online: the move count a drop this phone sent was aimed from, until the host answers it. */
+let pending: number | null = null;
+/** Online: whether the last board drawn was this phone's turn, for the your-turn alert. */
+let wasMine = false;
+let wasConnected = false;
+let toastTimer = 0;
+let bannerTimer = 0;
+
+/** Online, while the friend is on turn or the host has not sent the game yet. */
+const waiting = () => channel !== null && (latest === null || (!isOver(board) && board.turn !== me));
+/** Online, while this phone has no connection: nothing can be sent. */
+const offline = () => channel !== null && !channel.connected;
+
 /** No taps or keys from the player right now. */
-const locked = () => busy || thinking || isOver(board);
+const locked = () => busy || thinking || isOver(board) || waiting() || offline();
 
 const boardEl = $("c4-board");
 const cells: HTMLElement[] = [];
@@ -74,7 +98,7 @@ for (let r = 0; r < ROWS; r++) {
     el.addEventListener("click", () => {
       if (locked()) return;
       if (c === col) void play();
-      else aim(c);
+      else steer(c);
     });
     boardEl.append(el);
     cells.push(el);
@@ -91,6 +115,8 @@ function cleanName(raw: string, fallback: string): string {
 const saveKey = () => (solo ? "solo" : "game");
 
 function persist() {
+  // Online, the game lives on the server.
+  if (channel) return;
   const saved: Saved = { names, starter: board.starter, moves: board.moves, wins };
   if (solo) Object.assign(saved, { level, seed });
   save(saveKey(), JSON.stringify(saved));
@@ -137,13 +163,22 @@ function drawBoard() {
 function aim(c: number) {
   col = Math.max(0, Math.min(COLS - 1, c));
   const over = isOver(board);
+  const frozen = thinking || offline();
   const x = `translateX(${col * cellSize()}px)`;
   $("c4-hover").style.transform = x;
   $("c4-col").style.transform = x;
-  $("c4-col").style.opacity = over ? "0" : "1";
-  $<HTMLButtonElement>("c4-left").disabled = over || thinking || col === 0;
-  $<HTMLButtonElement>("c4-right").disabled = over || thinking || col === COLS - 1;
-  $<HTMLButtonElement>("c4-drop").disabled = thinking || !canDrop(board, col);
+  $("c4-col").style.opacity = over ? "0" : waiting() ? "0.5" : "1";
+  $<HTMLButtonElement>("c4-left").disabled = over || frozen || col === 0;
+  $<HTMLButtonElement>("c4-right").disabled = over || frozen || col === COLS - 1;
+  $<HTMLButtonElement>("c4-drop").disabled = frozen || !canDrop(board, col);
+}
+
+/** The player moves the chip. Online, the friend sees it move. */
+function steer(c: number) {
+  if (locked()) return;
+  const was = col;
+  aim(c);
+  if (channel && col !== was) channel.send({ t: "aim", col });
 }
 
 /** A player card's second line: the result, whose turn it is, or the computer's level. */
@@ -151,7 +186,11 @@ function status(seat: Seat): string {
   if (board.winner === seat) return "Winner";
   if (board.draw) return "Draw";
   if (solo && seat === COMPUTER) return LEVEL_LABELS[level];
-  return !isOver(board) && board.turn === seat ? "Your turn" : "";
+  const on = !isOver(board) && board.turn === seat;
+  if (!channel) return on ? "Your turn" : "";
+  // Online, this phone's card says which colour is yours.
+  if (seat !== me) return on && latest ? "Their turn" : "";
+  return on && latest ? "Your turn" : "You";
 }
 
 function drawPlayers() {
@@ -167,12 +206,43 @@ function drawPlayers() {
   drop.style.setProperty("--c", `var(--p${board.turn + 1})`);
   drop.style.setProperty("--cd", `var(--p${board.turn + 1}-dark)`);
   drop.setAttribute("aria-label", `Drop ${names[board.turn]}'s chip`);
+  const wait = waiting();
   $("c4-hover-disc").className = `c4-disc s${board.turn}`;
-  $("c4-hover").style.visibility = over ? "hidden" : "";
-  $("c4-controls").hidden = over || thinking;
-  $("c4-wait").hidden = !thinking;
+  $("c4-hover").style.visibility = over || (channel && !latest) ? "hidden" : "";
+  // Online, the friend's chip shows dimmed where they aim.
+  $("c4-hover").classList.toggle("ghost", wait);
+  $("c4-controls").hidden = over || thinking || wait;
+  $("c4-wait").hidden = !thinking && !wait;
+  // A hidden bar keeps its words, so it never flashes "Connecting" as it goes.
+  if (thinking || wait) {
+    const waitFor = thinking ? COMPUTER : ((1 - me) as Seat);
+    $("c4-wait").style.setProperty("--c", `var(--p${waitFor + 1})`);
+    $("c4-wait-text").textContent = thinking
+      ? "Computer is thinking"
+      : latest
+        ? `Waiting for ${names[waitFor]}`
+        : "Connecting";
+  }
   $("c4-result").hidden = !over;
-  if (over) $("c4-result-title").textContent = board.draw ? "It's a draw" : `${names[board.winner!]} wins!`;
+  if (over) drawResult();
+}
+
+/** The end of a game: who won, and online, who wants a rematch. */
+function drawResult() {
+  const w = board.winner;
+  $("c4-result-title").textContent =
+    w === null ? "It's a draw" : channel && w === me ? "You win!" : `${names[w]} wins!`;
+  const again = $<HTMLButtonElement>("c4-again");
+  const note = $("c4-note");
+  const friend = names[(1 - me) as Seat];
+  const flags = channel && latest ? latest.rematch : [false, false];
+  again.disabled = flags[me]!;
+  again.textContent = flags[me] ? `Waiting for ${friend}` : "Play again";
+  const asked = !flags[me] && flags[1 - me];
+  // Online the line keeps its place, so the board does not jump when the friend asks.
+  note.hidden = !channel;
+  note.style.visibility = asked ? "" : "hidden";
+  note.textContent = asked ? `${friend} wants a rematch` : "\u00a0";
 }
 
 function draw() {
@@ -183,13 +253,29 @@ function draw() {
 
 // ---------- playing ----------
 
-/** Animates the current player's chip into `col`, then commits the move. */
+/** Drops the current player's chip in `col`: animates it, then commits the move. */
 async function play() {
   if (busy || thinking || !canDrop(board, col)) return;
+  const ch = channel;
+  if (ch) {
+    // Online, only on this phone's turn, and only once the host can hear it.
+    if (waiting() || !ch.send({ t: "drop", col, at: board.moves.length })) return;
+    pending = board.moves.length;
+  }
+  if (!(await fall(col)) || ch !== channel) return;
+  if (ch) return void settle();
+  if (board.winner !== null) wins[board.winner] += 1;
+  persist();
+  takeTurn();
+}
+
+/** Animates the current player's chip falling into column `c`, then puts it on the board. False when a new game started meanwhile. */
+async function fall(c: number): Promise<boolean> {
+  const id = gameId;
   busy = true;
-  const row = landingRow(board, col);
+  const row = landingRow(board, c);
   const size = cellSize();
-  const x = BOARD_PAD + col * size;
+  const x = BOARD_PAD + c * size;
   const end = BOARD_PAD + row * size;
   const start = -size * 1.1;
   const chip = document.createElement("div");
@@ -210,13 +296,12 @@ async function play() {
     { duration: ms, fill: "forwards" },
   ).finished;
   chip.remove();
+  if (id !== gameId) return false;
 
-  board = drop(board, col)!;
-  if (board.winner !== null) wins[board.winner] += 1;
-  persist();
+  board = drop(board, c)!;
   if ("vibrate" in navigator) navigator.vibrate(board.winner !== null ? [20, 40, 20, 40, 60] : 12);
   busy = false;
-  takeTurn();
+  return true;
 }
 
 /**
@@ -248,6 +333,7 @@ function stopThinking() {
 }
 
 function startGame(next: Board) {
+  gameId++;
   board = next;
   col = 3;
   busy = false;
@@ -310,10 +396,120 @@ $("c4-resume").addEventListener("click", () => {
   startGame(saved.board);
 });
 
-$("c4-leave").addEventListener("click", goHome);
-$("c4-again").addEventListener("click", rematch);
-$("c4-left").addEventListener("click", () => !locked() && aim(col - 1));
-$("c4-right").addEventListener("click", () => !locked() && aim(col + 1));
+// ---------- online ----------
+
+/**
+ * Catches the board up with the host's latest match. The friend's new chip
+ * falls as it would on one phone; anything else (a rematch, a reconnect, a
+ * refused drop) redraws the board at once.
+ */
+async function settle() {
+  const m = latest;
+  const ch = channel;
+  if (!ch || !m || busy) return;
+  const target = replay(m.first, m.moves);
+  if (!target) return;
+  wins = [...m.wins];
+  const n = board.moves.length;
+  const same = (b: Board) => b.starter === target.starter && b.moves.every((c, i) => target.moves[i] === c);
+  if (target.moves.length === n + 1 && same(board)) {
+    const c = target.moves[n]!;
+    col = c;
+    if (!(await fall(c)) || ch !== channel) return;
+    return settle();
+  }
+  if (target.moves.length !== n || !same(board)) {
+    if (target.moves.length === 0) col = 3;
+    board = target;
+  }
+  if (pending !== null) {
+    // The drop this phone sent never counted (a drop in the connection, say).
+    if (target.moves.length <= pending) toast("Connection hiccup · drop that one again", me);
+    pending = null;
+  }
+  draw();
+  const mine = !isOver(board) && board.turn === me;
+  if (mine && !wasMine) yourTurn();
+  wasMine = mine;
+}
+
+function yourTurn() {
+  toast("Your turn", me);
+  if ("vibrate" in navigator) navigator.vibrate([30, 60, 30]);
+}
+
+function toast(text: string, seat: Seat) {
+  const el = $("c4-toast");
+  el.textContent = text;
+  el.style.setProperty("--c", `var(--p${seat + 1})`);
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+function setBanner(text: string | null, ok = false) {
+  const el = $("c4-banner");
+  el.hidden = !text;
+  el.textContent = text ?? "";
+  el.classList.toggle("ok", ok);
+}
+
+/** The connection banner, as golf shows it: this phone's link first, then the friend's. */
+function updateBanner() {
+  const ch = channel;
+  if (!ch) return;
+  const recovered = !wasConnected && ch.connected;
+  wasConnected = ch.connected;
+  clearTimeout(bannerTimer);
+  const friend = ch.players[1 - me]!;
+  if (!ch.connected) setBanner("Connection lost · reconnecting...");
+  else if (!friend.connected) setBanner(`${friend.name} dropped out · waiting...`);
+  else if (recovered) {
+    setBanner("Back online", true);
+    bannerTimer = window.setTimeout(() => setBanner(null), 1600);
+  } else setBanner(null);
+}
+
+function onMessage(msg: FourServerMessage) {
+  if (msg.t === "state") {
+    latest = msg.match;
+    void settle();
+  } else if (msg.seat !== me && !busy && !isOver(board) && board.turn === msg.seat) {
+    aim(msg.col);
+  }
+}
+
+/** The connection or the players changed. */
+function onChange() {
+  const ch = channel;
+  if (!ch) return;
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  updateBanner();
+  // A falling chip redraws when it lands.
+  if (!busy) draw();
+}
+
+function openOnline(ch: Channel<FourServerMessage, FourClientMessage>) {
+  channel = ch;
+  me = ch.me;
+  latest = null;
+  pending = null;
+  wasMine = false;
+  wasConnected = ch.connected;
+  wins = [0, 0];
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  setBanner(null);
+  // An empty board, waiting, until the host sends the game.
+  startGame(newBoard());
+  ch.listen({ message: onMessage, change: onChange });
+}
+
+$("c4-leave").addEventListener("click", () => (channel ? channel.leave() : goHome()));
+$("c4-again").addEventListener("click", () => (channel ? channel.send({ t: "rematch" }) : rematch()));
+$("c4-left").addEventListener("click", () => steer(col - 1));
+$("c4-right").addEventListener("click", () => steer(col + 1));
 $("c4-drop").addEventListener("click", () => void play());
 
 addEventListener("resize", () => {
@@ -322,8 +518,8 @@ addEventListener("resize", () => {
 
 addEventListener("keydown", (e) => {
   if (!$("c4-game").classList.contains("on") || locked()) return;
-  if (e.key === "ArrowLeft") aim(col - 1);
-  else if (e.key === "ArrowRight") aim(col + 1);
+  if (e.key === "ArrowLeft") steer(col - 1);
+  else if (e.key === "ArrowRight") steer(col + 1);
   else if (e.key === "ArrowDown" || e.key === " " || e.key === "Enter") {
     if ((e.target as Element).closest("button")) return;
     e.preventDefault();
@@ -345,13 +541,22 @@ addEventListener("keydown", (e) => {
     wins,
     seed,
     level: solo ? level : null,
+    me: channel ? me : null,
+    locked: locked(),
+    rematch: latest?.rematch ?? null,
+    ghost: $("c4-hover").classList.contains("ghost"),
   }),
 };
 
 // ---------- shell hooks ----------
 
-export function open(_rest: string, session: Session): void {
-  // The shell opens only the modes info.ts lists: solo and pass & play.
+export function open(_rest: string, session: GameSession): void {
+  if (session.mode === "online") {
+    // Straight into the party's game, on this phone's seat.
+    solo = false;
+    if (!channel) openOnline(session.channel as Channel<FourServerMessage, FourClientMessage>);
+    return;
+  }
   solo = session.mode === "solo";
   if (session.mode === "solo") {
     names = [cleanName(session.names[0], DEFAULT_NAMES[0]), COMPUTER_NAME];
@@ -365,4 +570,11 @@ export function open(_rest: string, session: Session): void {
 export function close(): void {
   // Only the computer's wait runs in the background; the game is saved after every move.
   stopThinking();
+  // Online, the game stays on the server; a chip still falling is dropped with it.
+  channel = null;
+  latest = null;
+  clearTimeout(toastTimer);
+  clearTimeout(bannerTimer);
+  $("c4-toast").classList.remove("on");
+  setBanner(null);
 }

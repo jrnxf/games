@@ -3,12 +3,13 @@
 // A host is plain data and pure functions, so it runs in the Durable Object
 // and in unit tests alike.
 //
-// A turn-based game needs little more than this, e.g. Connect Four:
-//   start: () => ({ first: 0, moves: [] })
+// A turn-based game needs little more than this. Connect Four's
+// (src/games/connect-four/core/host.ts):
+//   start: (by) => ({ first: by, moves: [] })
 //   parse: a { t: "drop", col, at } with a whole-number column
 //   receive: refuse a wrong turn or a stale `at`, else push the column and
-//            answer { all: { t: "state", ...state } }
-//   sync: (state) => ({ t: "state", ...state })
+//            answer { all: { t: "state", match } }
+//   sync: (match) => ({ t: "state", match })
 
 import type { Seat } from "./protocol.ts";
 
@@ -25,8 +26,11 @@ export interface HostReply<S, Out> {
 }
 
 export interface GameHost<S = unknown, In = unknown, Out = unknown> {
-  /** A fresh game, when the party opens this one. */
-  start(): S;
+  /**
+   * A fresh game, when `by` opens this one. `last` is this game's state when
+   * the party last closed it, or null, so a running score can carry over.
+   */
+  start(by: Seat, last: S | null): S;
   /** Checks a message body from a phone. Null drops it. */
   parse(raw: unknown): In | null;
   /** Handles one checked message from `seat`. */

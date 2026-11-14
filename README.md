@@ -10,7 +10,9 @@ Small games for your phone, in one web app you add to your home screen: no app s
 - **Online**: live turns in a party. You see your friend's aim line as they drag, get a "your turn" alert, and drop back in after a lost connection or a closed tab.
 - **Aim**: drag anywhere on the screen and let go. The preview line shows where the ball goes, bounces included.
 
-**Connect Four** (`/connect-four`): solo against the computer (Easy, Medium or Hard), or two players on one phone. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. You go first in the first game, then the first move alternates. The game saves after every move, the computer's turn included, and keeps a running score.
+**Connect Four** (`/connect-four`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. You go first in the first game, then the first move alternates. The game saves after every move, the computer's turn included, and keeps a running score.
+
+- **Online**: red is the party's maker, yellow the friend, and whoever picked the game drops first. On your friend's turn you see their chip, dimmed, over the column they aim at, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
 
 ## Stack
 
@@ -42,10 +44,10 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; Connect Four rules and computer
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; Connect Four rules, computer and host
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
-pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, menu, reconnect, leave
+pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four to a win and a rematch, menu, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
 pnpm test:menu      # the start screens, the menu, Connect Four solo vs the computer and pass & play, resume, rematch, offline
 ```
@@ -86,7 +88,7 @@ tests/e2e/                  browser and online end-to-end runs
 
 ### Online
 
-1. Write the game's server side as a `GameHost` (`src/party/host.ts`): `start`, `parse`, `receive` and `sync`, plain data and pure functions. Mini Golf's is `src/games/mini-golf/core/host.ts`.
+1. Write the game's server side as a `GameHost` (`src/party/host.ts`): `start`, `parse`, `receive` and `sync`, plain data and pure functions. `start(by, last)` gets the seat that picked the game and the state this party last left it in, or null. Connect Four's is `src/games/connect-four/core/host.ts`, the smaller one.
 2. Add it to `HOSTS` in `worker/hosts.ts` under the game's id, and set `online: true` in `info.ts`.
 3. Online, `open` gets `session.channel`: `me` (your seat), `players`, `connected`, `send(msg)`, `listen({ message, change })` and `leave()`. Call `listen` first: the first message is the host's `sync`, and another follows every reconnect. `leave()` takes both phones back to the menu.
 4. Bump `PROTOCOL` in `src/party/protocol.ts` whenever the messages or the rules on both sides change.

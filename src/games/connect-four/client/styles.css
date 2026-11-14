@@ -104,6 +104,7 @@ body[data-game="connect-four"] {
 /* ---------- board ---------- */
 
 .c4-play {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -149,6 +150,15 @@ body[data-game="connect-four"] {
   border: 6px solid transparent;
   border-top-color: var(--muted);
   opacity: 0.7;
+}
+
+/* Online: the friend's chip, dimmed, over the column they aim at. */
+.c4-hover.ghost {
+  opacity: 0.45;
+}
+
+.c4-hover.ghost::after {
+  display: none;
 }
 
 @keyframes c4-bob {
@@ -321,8 +331,9 @@ body[data-game="connect-four"] {
   height: 24px;
 }
 
-/* The computer's turn: one calm bar in place of the controls, the same height. */
+/* The computer's turn, or online the friend's: one calm bar in place of the controls, the same height. */
 .c4-wait {
+  --c: var(--p2);
   padding: 16px 0 18px;
 }
 
@@ -350,7 +361,7 @@ body[data-game="connect-four"] {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--p2);
+  background: var(--c);
   animation: c4-dot 1s ease-in-out infinite;
 }
 
@@ -390,10 +401,83 @@ body[data-game="connect-four"] {
   text-align: center;
 }
 
+.c4-note {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .c4-result-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+/* ---------- online ---------- */
+
+/* The your-turn alert drops in from the top of the play area, as golf's does. */
+.c4-toast {
+  --c: var(--accent);
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  max-width: 100%;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--c);
+  background: var(--panel);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -12px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1),
+    opacity 0.2s,
+    visibility 0.35s;
+}
+
+.c4-toast.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.c4-banner {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 100%;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--amber);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.c4-banner.ok {
+  border-color: var(--accent);
+}
+
+/* Keep the your-turn alert clear of a connection banner. */
+.c4-banner:not([hidden]) + .c4-toast {
+  top: 48px;
 }
 
 @media (prefers-reduced-motion: reduce) {

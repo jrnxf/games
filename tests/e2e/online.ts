@@ -3,7 +3,8 @@
 // top of it) with raw WebSocket clients; part two plays through the real UI
 // on two headless phones (separate Chrome sessions). Covers making a party,
 // joining by link and by code, picking games from either phone, turns, live
-// aim, reconnect (page reload and a server restart) and leaving.
+// aim, reconnect (page reload and a server restart) and leaving, in golf and
+// in a Connect Four game to a win and a rematch.
 // Run with `pnpm test:online`.
 
 import { execFileSync, type ChildProcess } from "node:child_process";
@@ -258,6 +259,126 @@ async function protocolTest() {
   ana.close();
 }
 
+const FOUR = "connect-four";
+
+/** What Connect Four's test hook reports. */
+interface FourState {
+  moves: number[];
+  turn: 0 | 1;
+  winner: 0 | 1 | null;
+  col: number;
+  busy: boolean;
+  wins: [number, number];
+  me: 0 | 1 | null;
+  locked: boolean;
+  rematch: [boolean, boolean] | null;
+  ghost: boolean;
+}
+
+const four = (p: Browser) => p.eval<FourState>("() => window.__connectFour.state()");
+const fourToast = (p: Browser) =>
+  p.eval<boolean>(`() => document.getElementById("c4-toast").classList.contains("on")`);
+
+/** Aims with the arrows and taps Drop on `p`, then waits for the chip to land on both phones. */
+async function fourDrop(p: Browser, other: Browser, col: number) {
+  await waitFor("on turn", () => !four(p).locked);
+  const n = four(p).moves.length;
+  while (four(p).col < col) p.click("#c4-right");
+  while (four(p).col > col) p.click("#c4-left");
+  p.click("#c4-drop");
+  await waitFor(`chip in column ${col} on both phones`, () =>
+    [p, other].every((x) => {
+      const s = four(x);
+      return s.moves.length === n + 1 && s.moves[n] === col && !s.busy;
+    }),
+  );
+}
+
+/** Connect Four between the two phones: a game to a win, a reload mid-game, a rematch and a leave while offline. */
+async function connectFour(a: Browser, b: Browser, atMenu: (p: Browser) => boolean) {
+  // Kai picks Connect Four, so Kai drops first.
+  b.click(`#tiles a[data-id="${FOUR}"]`);
+  await waitFor("both in Connect Four", () => four(a).me === 0 && four(b).me === 1 && four(b).turn === 1);
+  check(a.eval<string>("() => location.pathname") === `/${FOUR}`, "the maker's phone opens Connect Four too");
+  check(!four(b).locked && four(a).locked, "the player who picked it drops first");
+  check(
+    a.visible("c4-wait") && !a.visible("c4-controls") && a.text("#c4-wait-text") === "Waiting for Kai",
+    "the other phone waits, with no controls",
+  );
+  check(
+    a.text("#c4-pl-1 .c4-sub") === "Their turn" && b.text("#c4-pl-1 .c4-sub") === "Your turn",
+    "the cards say whose turn",
+  );
+
+  // Kai aims: Ana sees his chip, dimmed, over the column.
+  b.click("#c4-right");
+  await waitFor("ghost aim", () => four(a).col === 4 && four(a).ghost);
+  check(!four(b).ghost, "the friend sees the live aim as a dimmed chip");
+  a.screenshot("online-c4-friend-aiming");
+  b.screenshot("online-c4-your-aim");
+
+  // Kai stacks column 3, Ana column 2.
+  await fourDrop(b, a, 3);
+  await waitFor("your-turn toast", () => fourToast(a));
+  check(a.text("#c4-toast") === "Your turn", "the maker gets the your-turn alert");
+  a.screenshot("online-c4-your-turn");
+  await fourDrop(a, b, 2);
+  await fourDrop(b, a, 3);
+
+  // Ana's page reloads on her turn: the same board, still her turn.
+  a.open(`${ORIGIN}/${FOUR}`);
+  await waitFor("maker back in the game", () => four(a).me === 0 && four(a).moves.join() === "3,2,3");
+  await waitFor("maker on turn after reload", () => !four(a).locked);
+  check(true, "after a reload the maker is on the same board, still on turn");
+  await fourDrop(a, b, 2);
+  await fourDrop(b, a, 3);
+  await fourDrop(a, b, 2);
+  await fourDrop(b, a, 3);
+  await waitFor("game over", () => four(a).winner === 1 && four(b).winner === 1);
+  check(
+    b.text("#c4-result-title") === "You win!" && a.text("#c4-result-title") === "Kai wins!",
+    "four in a row wins, on both phones",
+  );
+  check(four(a).wins.join() === "0,1" && four(b).wins.join() === "0,1", "both phones keep the score");
+
+  // A rematch waits for both players, then the other player drops first.
+  a.click("#c4-again");
+  await waitFor("rematch asked", () => b.text("#c4-note") === "Ana wants a rematch");
+  check(
+    a.text("#c4-again") === "Waiting for Kai" &&
+      a.eval<boolean>(`() => document.getElementById("c4-again").disabled`),
+    "the asker waits for the friend",
+  );
+  a.screenshot("online-c4-rematch-waiting");
+  b.screenshot("online-c4-rematch-asked");
+  b.click("#c4-again");
+  await waitFor("rematch", () =>
+    [a, b].every((p) => four(p).moves.length === 0 && four(p).turn === 0 && !four(p).busy),
+  );
+  check(
+    !four(a).locked && four(b).locked && four(b).wins.join() === "0,1",
+    "the rematch swaps who goes first",
+  );
+  await fourDrop(a, b, 3);
+
+  // The connection drops. Ana can still leave the game: her phone goes at once,
+  // and Kai's follows once the server is back.
+  await stopWorker();
+  await waitFor(
+    "maker notices",
+    () => a.visible("c4-banner") && a.text("#c4-banner").includes("reconnecting"),
+  );
+  check(four(a).locked, "offline, the board takes no taps");
+  a.screenshot("online-c4-reconnecting");
+  a.click("#c4-leave");
+  await waitFor("maker at the menu while offline", () => atMenu(a));
+  check(!atMenu(b), "offline, leaving Connect Four works on the maker's phone");
+  await startWorker();
+  await waitFor("friend at the menu", () => atMenu(b), 30_000);
+  await waitFor("maker reconnected", () => a.text("#menu-chip-text") === "Online · with Kai", 30_000);
+  check(true, "the friend follows to the menu once the server is back");
+}
+
 /** Plays the solver's stroke for whoever is on turn, from `phone`. */
 function playStroke(phone: Browser) {
   const m = phone.state().match!;
@@ -295,15 +416,13 @@ async function uiTest() {
     check(/^[A-Z0-9]{5}$/.test(code), `the menu shows the party code (${code})`);
     check(a.text("#menu-invite-url").endsWith(`/p/${code}`), "the menu shows the invite link");
     check(a.text("#menu-chip-text") === "Online · Waiting for a friend", "the chip says who's missing");
-    check(
-      tileOff(a, GOLF) && a.text(`${tile(GOLF)} small`) === "Waiting for a friend",
-      "golf waits for a friend",
-    );
-    check(
-      tileOff(a, "connect-four") && a.text(`${tile("connect-four")} small`) === "Not online yet",
-      "Connect Four stays dimmed with its reason",
-    );
-    a.click(tile("connect-four"));
+    for (const id of [GOLF, FOUR]) {
+      check(
+        tileOff(a, id) && a.text(`${tile(id)} small`) === "Waiting for a friend",
+        `${id} waits for a friend`,
+      );
+    }
+    a.click(tile(FOUR));
     check(atMenu(a) && a.visible("menu-party"), "a dimmed tile does not open");
     a.screenshot("online-menu-waiting");
 
@@ -320,16 +439,11 @@ async function uiTest() {
     await waitFor("friend at the menu", () => atMenu(b) && b.text("#menu-chip-text") === "Online · with Ana");
     await waitFor("maker sees friend", () => a.text("#menu-chip-text") === "Online · with Kai");
     check(!a.visible("menu-party") && !tileOff(a, GOLF), "the code card goes and golf opens up");
-    check(tileOff(b, "connect-four"), "Connect Four is dimmed on the friend's phone too");
+    check(!tileOff(b, FOUR), "Connect Four is open on the friend's phone too");
     a.screenshot("online-menu-together-a");
     b.screenshot("online-menu-together-b");
 
-    // A link to a game with no online play keeps the party at the menu.
-    b.open(`${ORIGIN}/connect-four`);
-    await waitFor("menu toast", () => atMenu(b) && b.text("#menu-toast") === "Connect Four: not online yet");
-    await waitFor("friend back", () => b.text("#menu-chip-text") === "Online · with Ana");
-    check(!b.visible("c4-home"), "a link to a game with no online play shows the menu and says why");
-    b.screenshot("online-not-online-yet");
+    await connectFour(a, b, atMenu);
 
     // Ana picks golf, with Ctrl held: online a tile never opens a new tab (it would push this one out).
     const prevented = a.eval<boolean>(`() => {

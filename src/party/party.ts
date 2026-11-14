@@ -19,6 +19,8 @@ export interface PartyRecord {
   game: string | null;
   /** The open game's state, owned by its host. */
   state: unknown;
+  /** Each game's state when it was last closed, by id, for the next start. Missing on parties made before it. */
+  last?: Record<string, unknown>;
   pickedBy: Seat | null;
   leftBy: Seat | null;
 }
@@ -30,6 +32,7 @@ export function createParty(code: string): PartyRecord {
     seats: [null, null],
     game: null,
     state: null,
+    last: {},
     pickedBy: null,
     leftBy: null,
   };
@@ -66,7 +69,11 @@ export function claimSeat(
   name: string,
   connected: [boolean, boolean],
 ): Seat | ErrorCode {
-  if (party.status === "ended") return "gone";
+  if (party.status === "ended") {
+    // The player who stayed may have been offline when the other left: let them back in to hear who it was.
+    const stayed = party.leftBy === null ? null : ((1 - party.leftBy) as Seat);
+    return stayed !== null && party.seats[stayed]?.token === token ? stayed : "gone";
+  }
   const take = (seat: Seat): Seat => {
     party.seats[seat] = { token, name: name || seatName(seat) };
     return seat;
@@ -99,10 +106,10 @@ export function leave(party: PartyRecord, seat: Seat): void {
 }
 
 /**
- * Opens `game` (a fresh one) on both phones, or closes the open one for the
- * menu when `game` is null. The first game needs the guest seated and
- * connected (`connected`): until then the seat is up for grabs, and a game
- * would lock it. False when nothing changed.
+ * Opens `game` (a fresh one, started by `seat`) on both phones, or closes
+ * the open one for the menu when `game` is null. The first game needs the
+ * guest seated and connected (`connected`): until then the seat is up for
+ * grabs, and a game would lock it. False when nothing changed.
  */
 export function pick(
   party: PartyRecord,
@@ -112,10 +119,13 @@ export function pick(
   connected: [boolean, boolean],
 ): boolean {
   if (party.status === "ended" || game === party.game) return false;
-  if (game !== null) {
-    const host = hosts[game];
-    if (!host || !party.seats[0] || !party.seats[1] || guestIsStale(party, connected)) return false;
-    party.state = host.start();
+  const host = game === null ? undefined : hosts[game];
+  if (game !== null && (!host || !party.seats[0] || !party.seats[1] || guestIsStale(party, connected)))
+    return false;
+  // The closing game's state is kept for the next time it opens.
+  if (party.game !== null) party.last = { ...party.last, [party.game]: party.state };
+  if (game !== null && host) {
+    party.state = host.start(seat, party.last?.[game] ?? null);
     party.status = "together";
   } else {
     party.state = null;

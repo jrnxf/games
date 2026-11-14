@@ -122,6 +122,10 @@ describe("leaving", () => {
     pick(party, 0, "mini-golf", HOSTS, LIVE);
     leave(party, 1);
     expect(party).toMatchObject({ status: "ended", leftBy: 1, game: null, state: null });
+    // The maker, offline when it happened, gets back in only to hear who left.
+    expect(claimSeat(party, HOST, "Ana", LIVE)).toBe(0);
+    expect(claimSeat(party, GUEST, "Kai", LIVE)).toBe("gone");
+    expect(claimSeat(party, STRANGER, "Zed", LIVE)).toBe("gone");
     expect(pick(party, 0, "mini-golf", HOSTS, LIVE)).toBe(false);
     expect(receive(party, 0, "mini-golf", { t: "ready" }, HOSTS)).toBeNull();
   });
