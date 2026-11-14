@@ -1,10 +1,13 @@
-// End-to-end: the start screens, the game menu and a Connect Four game in
+// End-to-end: the start screens, the game menu and Connect Four games in
 // headless Chrome at a phone viewport, driven by taps on the real buttons.
-// Covers picking how you play, games a mode can't run, a win, the running
+// Covers picking how you play, games a mode can't run, a solo game against
+// the computer (with a reload on its turn), a pass & play win, the running
 // score, a reload mid-game, the trip back to the menu, and playing offline.
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
+import { computerMove } from "../../src/games/connect-four/core/ai.ts";
+import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
 import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 4321);
@@ -12,12 +15,16 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 interface C4State {
   moves: number[];
+  starter: 0 | 1;
   turn: 0 | 1;
   winner: 0 | 1 | null;
   draw: boolean;
   col: number;
   busy: boolean;
+  thinking: boolean;
   wins: [number, number];
+  seed: number;
+  level: "easy" | "medium" | "hard" | null;
 }
 
 execFileSync("pnpm", ["build"], { stdio: "inherit" });
@@ -39,6 +46,14 @@ async function dropIn(col: number) {
   await waitFor(`chip in column ${col}`, () => {
     const s = c4();
     return s.moves.length === before + 1 && !s.busy;
+  });
+}
+
+/** Waits out the computer's turn: its chip has landed and the game is Zoe's again, or over. */
+async function computerMoved() {
+  await waitFor("the computer's move", () => {
+    const s = c4();
+    return !s.thinking && !s.busy && (s.turn === 0 || s.winner !== null || s.draw);
   });
 }
 
@@ -73,15 +88,12 @@ try {
   check(phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 2, "two game tiles");
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
-    phone.eval<boolean>(
-      `() => document.querySelector('#tiles a[href="/connect-four"]').classList.contains("off")`,
-    ) && phone.text('#tiles a[href="/connect-four"] small') === "Needs two players",
-    "Connect Four is dimmed in solo, with the reason",
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile.off").length`) === 0 &&
+      phone.text('#tiles a[href="/connect-four"] small') === "Solo · vs computer",
+    "Connect Four plays solo, against the computer",
   );
   check(phone.text('#tiles a[href="/mini-golf"] small') === "Solo · just you", "Mini Golf plays solo");
   phone.screenshot("menu-solo");
-  phone.click('#tiles a[href="/connect-four"]');
-  check(phone.visible("games"), "a dimmed tile does not open");
 
   // The chip reopens the picker with the session ticked; back leaves it as it was.
   phone.click("#menu-chip");
@@ -93,6 +105,92 @@ try {
   phone.click("#start-mode-back");
   await waitFor("menu again", () => phone.visible("games"));
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "back changes nothing");
+
+  // Solo against the Hard computer: Zoe always takes the leftmost open column, and loses.
+  phone.click('#tiles a[href="/connect-four"]');
+  await waitFor("connect four home, solo", () => phone.visible("c4-home"));
+  check(
+    phone.text("#c4-name-0") === "Zoe" && phone.text("#c4-name-1") === "Computer",
+    "solo is Zoe against the computer",
+  );
+  check(
+    phone.text("#c4-sub-0") === "Red · goes first" && phone.text("#c4-sub-1") === "Yellow · Hard",
+    "Zoe goes first, and the computer's card shows its level",
+  );
+  phone.screenshot("c4-home-solo");
+  phone.click("#c4-start");
+  await waitFor("solo board", () => phone.visible("c4-game"));
+  check(c4().turn === 0 && !c4().thinking && c4().level === "hard", "Zoe starts against Hard");
+
+  await dropIn(0);
+  const blocked = phone.eval<{ thinking: boolean; still: boolean }>(`() => {
+    const api = window.__connectFour;
+    const before = api.state();
+    document.querySelectorAll("#c4-board .c4-cell")[38].click();
+    document.querySelectorAll("#c4-board .c4-cell")[39].click();
+    dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    const after = api.state();
+    return { thinking: before.thinking, still: !after.busy && after.col === before.col && after.moves.length === before.moves.length };
+  }`);
+  check(blocked.thinking && blocked.still, "taps and keys do nothing while the computer is thinking");
+  check(
+    phone.visible("c4-wait") &&
+      !phone.visible("c4-controls") &&
+      phone.text("#c4-wait").trim() === "Computer is thinking",
+    "the controls give way to “Computer is thinking”",
+  );
+  await computerMoved();
+  check(c4().moves.length === 2 && c4().turn === 0, "the computer answers, then it is Zoe's turn");
+  phone.screenshot("c4-solo-turn");
+
+  // Zoe's second chip, then a reload while the computer is still thinking.
+  await dropIn(0);
+  const pending = phone.eval<C4State | null>(`() => {
+    const s = window.__connectFour.state();
+    if (!s.thinking) return null;
+    setTimeout(() => location.reload(), 0);
+    return s;
+  }`);
+  check(pending, "the reload lands during the computer's turn");
+  await waitFor("home after reload", () => phone.visible("c4-home"));
+  check(phone.visible("c4-resume"), "a solo game in progress offers to resume");
+  phone.click("#c4-resume");
+  await waitFor("resumed solo", () => phone.visible("c4-game"));
+  check(
+    c4().thinking && c4().moves.join() === pending.moves.join(),
+    "the resumed game is on the computer's turn",
+  );
+  await computerMoved();
+  const expected = computerMove(replay(pending.starter, pending.moves)!, "hard", pending.seed);
+  check(
+    c4().moves.length === pending.moves.length + 1 && c4().moves.at(-1) === expected,
+    "after the resume, the computer plays the column its seed picked",
+  );
+
+  for (let s = c4(); s.winner === null && !s.draw; s = c4()) {
+    const b = replay(s.starter, s.moves)!;
+    await dropIn([0, 1, 2, 3, 4, 5, 6].find((c) => canDrop(b, c))!);
+    await computerMoved();
+  }
+  const lost = c4();
+  check(lost.winner === 1 && lost.wins.join() === "0,1", "Hard beats a player who never looks");
+  check(phone.text("#c4-result-title") === "Computer wins!", "the result names the computer");
+  check(
+    phone.text("#c4-pl-0 .c4-wins") === "0" && phone.text("#c4-pl-1 .c4-wins") === "1",
+    "the score reads Zoe 0, Computer 1",
+  );
+  phone.screenshot("c4-solo-lost");
+
+  // The rematch: the computer goes first this time and moves on its own.
+  phone.click("#c4-again");
+  await waitFor("solo rematch", () => c4().starter === 1);
+  await computerMoved();
+  check(c4().moves.length === 1 && c4().turn === 0, "the computer opens the rematch");
+  phone.click("#c4-leave");
+  await waitFor("c4 home", () => phone.visible("c4-home"));
+  check(phone.visible("c4-resume"), "the rematch can be resumed");
+  phone.click("#c4-home [data-menu]");
+  await waitFor("menu", () => phone.visible("games"));
 
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
@@ -119,6 +217,7 @@ try {
     phone.text("#c4-name-0") === "Zoe" && phone.text("#c4-name-1") === "Kai",
     "Connect Four takes the names from the session",
   );
+  check(!phone.visible("c4-resume"), "the solo game is saved apart from pass & play");
   phone.click("#c4-start");
   await waitFor("board", () => phone.visible("c4-game"));
   check(c4().col === 3 && c4().turn === 0, "red starts, aimed at the middle column");
@@ -186,6 +285,8 @@ try {
   await phone.pickSession("online", ["Zoe"]);
   await waitFor("menu", () => phone.visible("games"));
   check(phone.text('#tiles a[href="/connect-four"] small') === "Not online yet", "online dims Connect Four");
+  phone.click('#tiles a[href="/connect-four"]');
+  check(phone.visible("games"), "a dimmed tile does not open");
   phone.open(`${ORIGIN}/connect-four`);
   await waitFor("menu toast", () =>
     phone.eval<boolean>(`() => document.getElementById("menu-toast").classList.contains("on")`),
