@@ -5,11 +5,12 @@
 //
 // A turn-based game needs little more than this. Connect Four's
 // (src/games/connect-four/core/host.ts):
-//   start: (by) => ({ first: by, moves: [] })
-//   parse: a { t: "drop", col, at } with a whole-number column
-//   receive: refuse a wrong turn or a stale `at`, else push the column and
-//            answer { all: { t: "state", match } }
+//   start: (by, carried) => ({ first: by, moves: [], wins: carried or 0-0, ... })
+//   parse: an aim, a { t: "drop", col, at } with a whole-number column, or a rematch
+//   receive: refuse a wrong turn or a stale `at` with { me: { t: "state", match } },
+//            else push the column and answer { all: { t: "state", match } }
 //   sync: (match) => ({ t: "state", match })
+//   carry: (match) => ({ wins: match.wins })
 
 import type { Seat } from "./protocol.ts";
 
@@ -27,16 +28,19 @@ export interface HostReply<S, Out> {
 
 export interface GameHost<S = unknown, In = unknown, Out = unknown> {
   /**
-   * A fresh game, when `by` opens this one. `last` is this game's state when
-   * the party last closed it, or null, so a running score can carry over.
+   * A fresh game, when `by` opens this one. `carried` is what `carry` kept
+   * the last time the party closed it, or null. It comes from storage, so
+   * check it before use.
    */
-  start(by: Seat, last: S | null): S;
+  start(by: Seat, carried: unknown): S;
   /** Checks a message body from a phone. Null drops it. */
   parse(raw: unknown): In | null;
   /** Handles one checked message from `seat`. */
   receive(state: S, seat: Seat, msg: In): HostReply<S, Out>;
   /** What a phone needs to draw the game from scratch: sent when it opens the game and after every reconnect. */
   sync(state: S, seat: Seat): Out;
+  /** What to keep when the party closes this game, for the next `start` (a running score, say). Leave out to keep nothing. */
+  carry?(state: S): unknown;
 }
 
 /** The online games, by id. */

@@ -145,5 +145,25 @@ describe("in a party", () => {
     pick(p, 1, null, HOSTS, LIVE);
     pick(p, 1, "connect-four", HOSTS, LIVE);
     expect(p.state).toEqual({ first: 1, moves: [], wins: [1, 0], rematch: [false, false] });
+    // Only the score is kept for next time, not the whole board.
+    expect(p.last).toEqual({ "connect-four": { wins: [1, 0] } });
+  });
+
+  it("starts at 0-0 when the kept score is missing or corrupt", () => {
+    for (const junk of [
+      undefined,
+      null,
+      7,
+      "x",
+      {},
+      { wins: 3 },
+      { wins: [1] },
+      { wins: [1, -1] },
+      { wins: [0.5, 1] },
+      { wins: ["1", 0] },
+    ]) {
+      expect(startFour(0, junk).wins).toEqual([0, 0]);
+    }
+    expect(startFour(0, { wins: [2, 3] }).wins).toEqual([2, 3]);
   });
 });

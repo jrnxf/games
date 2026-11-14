@@ -88,7 +88,7 @@ tests/e2e/                  browser and online end-to-end runs
 
 ### Online
 
-1. Write the game's server side as a `GameHost` (`src/party/host.ts`): `start`, `parse`, `receive` and `sync`, plain data and pure functions. `start(by, last)` gets the seat that picked the game and the state this party last left it in, or null. Connect Four's is `src/games/connect-four/core/host.ts`, the smaller one.
+1. Write the game's server side as a `GameHost` (`src/party/host.ts`): `start`, `parse`, `receive` and `sync`, plain data and pure functions. `start(by, carried)` gets the seat that picked the game and what the optional `carry(state)` kept when this party last closed it, or null. Check `carried` before use, because it comes from storage. Connect Four's is `src/games/connect-four/core/host.ts`, the smaller one.
 2. Add it to `HOSTS` in `worker/hosts.ts` under the game's id, and set `online: true` in `info.ts`.
 3. Online, `open` gets `session.channel`: `me` (your seat), `players`, `connected`, `send(msg)`, `listen({ message, change })` and `leave()`. Call `listen` first: the first message is the host's `sync`, and another follows every reconnect. `leave()` takes both phones back to the menu.
 4. Bump `PROTOCOL` in `src/party/protocol.ts` whenever the messages or the rules on both sides change.

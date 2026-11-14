@@ -18,12 +18,22 @@ type Reply = HostReply<FourMatch, FourServerMessage>;
 /** The board a match replays to. Null only for a corrupt match, which the host never stores. */
 export const boardOf = (m: FourMatch): Board | null => replay(m.first, m.moves);
 
+/** What the party keeps when it closes Connect Four: the running score. */
+export const carryFour = (m: FourMatch): { wins: [number, number] } => ({ wins: [...m.wins] });
+
+const isCount = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+
 /**
  * A fresh match when `by` opens Connect Four: they drop first. The score
- * carries over from the last time this party played it (`last`), if it did.
+ * carries over from the last time this party played it (`carried`, from
+ * `carryFour`), and starts at 0-0 when that is missing or corrupt.
  */
-export function startFour(by: Seat, last: FourMatch | null = null): FourMatch {
-  const wins: [number, number] = last ? [...last.wins] : [0, 0];
+export function startFour(by: Seat, carried: unknown = null): FourMatch {
+  const kept = (carried as { wins?: unknown } | null | undefined)?.wins;
+  const wins: [number, number] =
+    Array.isArray(kept) && kept.length === 2 && kept.every(isCount)
+      ? [kept[0] as number, kept[1] as number]
+      : [0, 0];
   return { first: by, moves: [], wins, rematch: [false, false] };
 }
 
@@ -74,4 +84,5 @@ export const fourHost: GameHost<FourMatch, FourClientMessage, FourServerMessage>
   parse: parseFourMessage,
   receive,
   sync: (match) => ({ t: "state", match }),
+  carry: carryFour,
 };

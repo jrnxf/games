@@ -19,7 +19,7 @@ export interface PartyRecord {
   game: string | null;
   /** The open game's state, owned by its host. */
   state: unknown;
-  /** Each game's state when it was last closed, by id, for the next start. Missing on parties made before it. */
+  /** What each game's host kept when it last closed (`carry`), by id, for the next start. Missing on parties made before it. */
   last?: Record<string, unknown>;
   pickedBy: Seat | null;
   leftBy: Seat | null;
@@ -122,8 +122,12 @@ export function pick(
   const host = game === null ? undefined : hosts[game];
   if (game !== null && (!host || !party.seats[0] || !party.seats[1] || guestIsStale(party, connected)))
     return false;
-  // The closing game's state is kept for the next time it opens.
-  if (party.game !== null) party.last = { ...party.last, [party.game]: party.state };
+  // The closing game's host keeps what its next start needs, and no more.
+  if (party.game !== null) {
+    const { [party.game]: _, ...rest } = party.last ?? {};
+    const carry = hosts[party.game]?.carry;
+    party.last = carry ? { ...rest, [party.game]: carry(party.state) } : rest;
+  }
   if (game !== null && host) {
     party.state = host.start(seat, party.last?.[game] ?? null);
     party.status = "together";

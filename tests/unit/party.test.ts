@@ -35,6 +35,15 @@ function seated(): PartyRecord {
   return party;
 }
 
+describe("last", () => {
+  it("keeps nothing from a game whose host carries nothing over", () => {
+    const party = seated();
+    pick(party, 0, "mini-golf", HOSTS, LIVE);
+    pick(party, 0, null, HOSTS, LIVE);
+    expect(party.last).toEqual({});
+  });
+});
+
 describe("seats", () => {
   it("seats the maker first, then the friend, then refuses a third", () => {
     const party = createParty("BCDFG");
