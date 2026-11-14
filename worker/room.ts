@@ -4,7 +4,7 @@
 // costs anything while someone is actually sending messages.
 
 import { DurableObject } from "cloudflare:workers";
-import type { Seat } from "../src/core/match.ts";
+import type { Seat } from "../src/games/mini-golf/core/match.ts";
 import {
   CLOSE_FULL,
   CLOSE_GONE,
@@ -14,7 +14,7 @@ import {
   parseClientMessage,
   type ErrorCode,
   type ServerMessage,
-} from "../src/core/protocol.ts";
+} from "../src/games/mini-golf/core/protocol.ts";
 import {
   claimSeat,
   createRoom,
@@ -25,7 +25,7 @@ import {
   shoot,
   start,
   type RoomRecord,
-} from "../src/core/room.ts";
+} from "../src/games/mini-golf/core/room.ts";
 import type { Env } from "./index.ts";
 
 /** A room nobody has touched for this long is deleted. */

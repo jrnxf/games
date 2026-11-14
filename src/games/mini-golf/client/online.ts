@@ -5,12 +5,20 @@
 import { applyShot, other, type MatchState, type Seat } from "../core/match.ts";
 import type { Shot } from "../core/physics.ts";
 import type { Aim, ErrorCode, RoomView, ServerMessage } from "../core/protocol.ts";
-import { $, show } from "./dom.ts";
+import { $, show } from "../../../shell/dom.ts";
 import type { Driver, GameScreen } from "./game.ts";
 import { RoomSocket, type SocketStatus } from "./net.ts";
 import { PLAYER_COLORS } from "./render.ts";
 import { sfx } from "./sfx.ts";
 import { deviceToken, save } from "./storage.ts";
+
+/** Where the shell mounts mini golf. */
+export const BASE = "/mini-golf";
+
+/** A room's own path: the invite link. */
+export function roomPath(code: string): string {
+  return `${BASE}/r/${code}`;
+}
 
 export interface OnlineHooks {
   /** Back to the home screen. */
@@ -236,7 +244,7 @@ export class OnlineSession implements Driver {
     const room = this.room;
     if (!room || room.status !== "lobby") return;
     $("room-code").textContent = room.code;
-    $("invite-url").textContent = `${location.host}/r/${room.code}`;
+    $("invite-url").textContent = `${location.host}${roomPath(room.code)}`;
     const live = $("lobby-live");
     live.classList.toggle("off", this.status !== "open");
     live.lastChild!.textContent = this.status === "open" ? "Room open" : "Reconnecting";

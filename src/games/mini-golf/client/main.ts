@@ -1,30 +1,31 @@
-import "@fontsource-variable/outfit/wght.css";
+// Mini golf's entry: the shell loads it on first open, which adds the screens
+// below to the page and wires them up. The shell then calls open() and close().
+
 import "./styles.css";
+import screens from "./screens.html?raw";
 
 import { formatVsPar } from "../core/solo.ts";
 import { cleanName, isCode, normalizeCode, type ErrorCode } from "../core/protocol.ts";
-import { $, show } from "./dom.ts";
+import { $, show } from "../../../shell/dom.ts";
 import { GameScreen } from "./game.ts";
 import { LocalGame, savedLocalGame } from "./local.ts";
-import { OnlineSession } from "./online.ts";
+import { BASE, OnlineSession, roomPath } from "./online.ts";
 import { SoloGame, loadBest } from "./solo.ts";
 import { sfx } from "./sfx.ts";
 import { load, save } from "./storage.ts";
+
+document.body.insertAdjacentHTML("beforeend", screens);
 
 const screen = new GameScreen();
 let session: OnlineSession | null = null;
 
 // ---------- navigation ----------
 
-function roomPath(code: string) {
-  return `/r/${code}`;
-}
-
 function goHome(replace = true) {
   session?.end();
   session = null;
   if (screen.active) screen.stop();
-  if (location.pathname !== "/") history[replace ? "replaceState" : "pushState"](null, "", "/");
+  if (location.pathname !== BASE) history[replace ? "replaceState" : "pushState"](null, "", BASE);
   $("resume-local").hidden = !savedLocalGame();
   const best = loadBest();
   $("solo-best").hidden = !best;
@@ -32,17 +33,21 @@ function goHome(replace = true) {
   show("home");
 }
 
-function route() {
-  const m = /^\/r\/([^/]+)\/?$/.exec(location.pathname);
+/** Shows `rest`, the path after /mini-golf: "" for home or /r/CODE for a room. */
+export function open(rest: string): void {
+  // The back button during a pass & play or solo game stays in the game.
+  if (rest === "" && screen.active && session === null) return;
+  const m = /^\/r\/([^/]+)$/.exec(rest);
   const code = m ? normalizeCode(decodeURIComponent(m[1]!)) : "";
   if (m && isCode(code)) void openRoom(code);
   else goHome();
 }
 
-window.addEventListener("popstate", () => {
-  if (screen.active && session === null) return;
-  route();
-});
+export function close(): void {
+  session?.end();
+  session = null;
+  if (screen.active) screen.stop();
+}
 
 for (const el of document.querySelectorAll("[data-home]")) {
   el.addEventListener("click", () => goHome());
@@ -188,7 +193,7 @@ async function openRoom(code: string) {
 
 $("join-form").addEventListener("submit", (e) => {
   e.preventDefault();
-  const code = normalizeCode(location.pathname.split("/")[2] ?? "");
+  const code = normalizeCode(location.pathname.slice(`${BASE}/r/`.length));
   if (isCode(code)) connect(code, onlineName("join-name"));
 });
 
@@ -237,11 +242,3 @@ $("share-link").addEventListener("click", async () => {
     $("copy-link").click();
   }
 });
-
-// ---------- start ----------
-
-route();
-
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => void navigator.serviceWorker.register("/sw.js"));
-}

@@ -1,9 +1,10 @@
-// Service worker: keeps the app shell offline so pass-and-play works with
-// no connection. The build fills in VERSION and ASSETS (see vite.config.ts).
+// Service worker: keeps the app shell and every game offline so pass-and-play
+// works with no connection. The build fills in VERSION and ASSETS (see
+// vite.config.ts).
 
 const VERSION = "__VERSION__";
 const ASSETS = ["__ASSETS__"];
-const CACHE = `minigolf-${VERSION}`;
+const CACHE = `games-${VERSION}`;
 /** How long a page load waits for the network before using the cached shell. */
 const NAV_TIMEOUT_MS = 3000;
 
@@ -21,9 +22,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k.startsWith("minigolf-") && k !== CACHE).map((k) => caches.delete(k)),
-        ),
+        Promise.all(keys.filter((k) => k.startsWith("games-") && k !== CACHE).map((k) => caches.delete(k))),
       )
       .then(() => self.clients.claim()),
   );

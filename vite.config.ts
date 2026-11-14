@@ -5,7 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 /** Emits sw.js with the list of built files to precache and a version that changes with them. */
 function serviceWorker(): Plugin {
   return {
-    name: "minigolf-service-worker",
+    name: "games-service-worker",
     apply: "build",
     generateBundle(_, bundle) {
       const built = Object.keys(bundle).filter((f) => f !== "index.html" && !f.endsWith(".map"));

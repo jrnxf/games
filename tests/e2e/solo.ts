@@ -3,13 +3,13 @@
 // on the home screen afterwards. Run with `pnpm test:solo` (builds first).
 
 import { execFileSync } from "node:child_process";
-import { COURSE_PAR, HOLES } from "../../src/core/holes.ts";
-import { soloTotal } from "../../src/core/solo.ts";
-import { findShot } from "../../src/core/solver.ts";
+import { COURSE_PAR, HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { soloTotal } from "../../src/games/mini-golf/core/solo.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 4319);
-const URL = `http://127.0.0.1:${PORT}/`;
+const URL = `http://127.0.0.1:${PORT}/mini-golf`;
 
 execFileSync("pnpm", ["build"], { stdio: "inherit" });
 const server = await startServer(
@@ -17,7 +17,7 @@ const server = await startServer(
   ["preview", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
   /Local:/,
 );
-const phone = new Browser("minigolf-e2e-solo");
+const phone = new Browser("games-e2e-solo");
 
 try {
   console.log(`solo e2e at ${URL} (screenshots in ${SHOTS})`);
