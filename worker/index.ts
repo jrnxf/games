@@ -1,6 +1,6 @@
 // Entry point: room API under /api, everything else is the static app.
 
-import { CODE_ALPHABET, CODE_LENGTH, isCode } from "../src/core/protocol.ts";
+import { CODE_ALPHABET, CODE_LENGTH, isCode } from "../src/games/mini-golf/core/protocol.ts";
 import type { Room } from "./room.ts";
 
 export { Room } from "./room.ts";

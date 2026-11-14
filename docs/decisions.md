@@ -8,11 +8,11 @@ One codebase that runs on any phone, installs from the browser to the home scree
 
 ## TypeScript, Vite, canvas, no UI framework
 
-The game is one canvas plus a handful of simple screens. Vite gives a fast dev server and a hashed production build with almost no config. A framework would add weight and churn for a few buttons and forms, so screens are plain HTML in `index.html` shown and hidden by id. Canvas 2D draws the course; the static parts are baked once per hole (see "A baked, lit course") and blitted each frame.
+The game is one canvas plus a handful of simple screens. Vite gives a fast dev server and a hashed production build with almost no config. A framework would add weight and churn for a few buttons and forms, so screens are plain HTML (each game's `screens.html`) shown and hidden by id. Canvas 2D draws the course; the static parts are baked once per hole (see "A baked, lit course") and blitted each frame.
 
 ## One shared, deterministic core
 
-`src/core` holds the physics, the 18 holes, the match rules and the online protocol, and both the phone and the room server import it. The physics runs on a fixed clock (120 ticks a second, 4 substeps each) and uses only `+ - * /` and `Math.sqrt`, never `Math.exp`, `Math.hypot` or trigonometry, because those may round differently between JavaScript engines. A stroke is sent as a whole-number velocity, so a shot means the same thing everywhere. A unit test pins one shot's exact result, so an accidental physics change fails CI rather than splitting online games between versions.
+`src/games/mini-golf/core` holds the physics, the 18 holes, the match rules and the online protocol, and both the phone and the room server import it. The physics runs on a fixed clock (120 ticks a second, 4 substeps each) and uses only `+ - * /` and `Math.sqrt`, never `Math.exp`, `Math.hypot` or trigonometry, because those may round differently between JavaScript engines. A stroke is sent as a whole-number velocity, so a shot means the same thing everywhere. A unit test pins one shot's exact result, so an accidental physics change fails CI rather than splitting online games between versions.
 
 ## Cloudflare Worker with a Durable Object per room
 
@@ -50,7 +50,7 @@ Also from the board: after each stroke a full-screen "Pass to Kai / I'm ready" c
 
 ## A baked, lit course
 
-The course looks like a real outdoor putt-putt: loop-pile carpet, red timber rails with a black rubber strip, white-and-red posts, loose sand, a steep Volcano with a red carpet crater, bark mulch around it, and a low afternoon sun with hard shadows. To get depth without a 3D engine, each hole is baked into a heightfield (rails, posts, hills, slopes, sand dips), lit per sample (normal, soft shadow, ambient occlusion) and drawn with a slight oblique camera so raised things show their front faces. `src/client/bake.ts` does it with no DOM, so it runs in a worker (`bake.worker.ts`) and a unit test pins the look. The bake happens once per hole and screen size; the next hole is baked during play, and a hole that is not ready yet shows flat colours and fades the baked picture in. Each frame is one blit plus the flag, aim preview, balls and power ring. The texture stays near one cell per unit on purpose: finer fibre aliased into a velvet fuzz. Physics is untouched, so the Volcano looks steeper than its push feels.
+The course looks like a real outdoor putt-putt: loop-pile carpet, red timber rails with a black rubber strip, white-and-red posts, loose sand, a steep Volcano with a red carpet crater, bark mulch around it, and a low afternoon sun with hard shadows. To get depth without a 3D engine, each hole is baked into a heightfield (rails, posts, hills, slopes, sand dips), lit per sample (normal, soft shadow, ambient occlusion) and drawn with a slight oblique camera so raised things show their front faces. `src/games/mini-golf/client/bake.ts` does it with no DOM, so it runs in a worker (`bake.worker.ts`) and a unit test pins the look. The bake happens once per hole and screen size; the next hole is baked during play, and a hole that is not ready yet shows flat colours and fades the baked picture in. Each frame is one blit plus the flag, aim preview, balls and power ring. The texture stays near one cell per unit on purpose: finer fibre aliased into a velvet fuzz. Physics is untouched, so the Volcano looks steeper than its push feels.
 
 ## Fonts and icons are not committed binaries
 
@@ -59,3 +59,9 @@ Fonts (Outfit only) come from a pinned `@fontsource` package and are bundled and
 ## Pinned versions
 
 Every npm dependency is pinned to an exact version. TypeScript stays on 6.0 because `typescript-eslint` does not support 7.0 yet.
+
+## One app, many games
+
+The app became Games: a menu of games in one installable web app, starting with Mini Golf and Connect Four. One app means one install, one service worker and one deploy, and a new game costs a folder and one line in `src/shell/games.ts`. Each game lives in `src/games/<id>/` and gets its own path (`/mini-golf`, `/connect-four`), so links go straight to a game and the browser back button returns to the menu. The menu imports only each game's small `info.ts`; the game's code, styles and screens load when it is first opened, so the menu stays light as games are added. Every built file is still precached, so all games work offline after the first visit. Games re-theme the shared screen styles through CSS tokens scoped to `body[data-game]`, and save under their own storage prefix. The cost: games share one bundle of base styles and one `body`, so a game must keep its ids and classes prefixed (`c4-…`) to avoid clashes.
+
+Connect Four is pass-and-play only for now. A game is its first player plus the list of columns played, which replays to the same board every time; that is what is saved, and it would also be the whole wire protocol if online play is added.

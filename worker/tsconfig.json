@@ -4,5 +4,5 @@
     "lib": ["es2023"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": [".", "../src/core"]
+  "include": [".", "../src/games/mini-golf/core"]
 }

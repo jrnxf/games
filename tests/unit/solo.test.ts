@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_STROKES, PICKUP_SCORE } from "../../src/core/constants.ts";
-import { COURSE_PAR, HOLES } from "../../src/core/holes.ts";
-import { total } from "../../src/core/match.ts";
+import { MAX_STROKES, PICKUP_SCORE } from "../../src/games/mini-golf/core/constants.ts";
+import { COURSE_PAR, HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { total } from "../../src/games/mini-golf/core/match.ts";
 import {
   createSolo,
   formatVsPar,
@@ -11,9 +11,9 @@ import {
   soloShot,
   soloTotal,
   soloVsPar,
-} from "../../src/core/solo.ts";
-import { findShot } from "../../src/core/solver.ts";
-import { loadBest, recordRound } from "../../src/client/solo.ts";
+} from "../../src/games/mini-golf/core/solo.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
+import { loadBest, recordRound } from "../../src/games/mini-golf/client/solo.ts";
 
 /** A stroke that is legal but goes nowhere near the cup: straight into the near wall. */
 const WASTED = { vx: 0, vy: 60 };
@@ -113,14 +113,14 @@ describe("best round", () => {
 
   it("survives a reload: it is read back from storage", () => {
     recordRound(60);
-    expect(store.get("minigolf.solo-best")).toBe(JSON.stringify({ strokes: 60, vsPar: 60 - COURSE_PAR }));
+    expect(store.get("mini-golf.solo-best")).toBe(JSON.stringify({ strokes: 60, vsPar: 60 - COURSE_PAR }));
     expect(loadBest()).toEqual({ strokes: 60, vsPar: 60 - COURSE_PAR });
   });
 
   it("ignores a damaged record and still works when storage throws", () => {
-    store.set("minigolf.solo-best", "{nope");
+    store.set("mini-golf.solo-best", "{nope");
     expect(loadBest()).toBeNull();
-    store.set("minigolf.solo-best", JSON.stringify({ strokes: "x" }));
+    store.set("mini-golf.solo-best", JSON.stringify({ strokes: "x" }));
     expect(loadBest()).toBeNull();
     vi.stubGlobal("localStorage", {
       getItem: () => {

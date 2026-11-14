@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, isCode, normalizeCode, parseClientMessage } from "../../src/core/protocol.ts";
+import {
+  cleanName,
+  isCode,
+  normalizeCode,
+  parseClientMessage,
+} from "../../src/games/mini-golf/core/protocol.ts";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 

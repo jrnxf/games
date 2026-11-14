@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TICKS } from "../../src/core/constants.ts";
-import { HOLES } from "../../src/core/holes.ts";
-import { shotFromAim, simulateShot } from "../../src/core/physics.ts";
-import { MIN_DRAG, powerFromDrag } from "../../src/client/power.ts";
+import { MAX_TICKS } from "../../src/games/mini-golf/core/constants.ts";
+import { HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { shotFromAim, simulateShot } from "../../src/games/mini-golf/core/physics.ts";
+import { MIN_DRAG, powerFromDrag } from "../../src/games/mini-golf/client/power.ts";
 
 // A fixed sweep of tee shots, through the real drag curve: every angle step
 // (ANGLES around the circle) at every drag step (DRAGS from the shortest

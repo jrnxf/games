@@ -1,0 +1,350 @@
+/* Connect Four screens. */
+
+body[data-game="connect-four"] {
+  --p1: #ff5c4d;
+  --p1-dark: #b84237;
+  --p2: #ffd23f;
+  --p2-dark: #b8972d;
+  --c4-board: #2f6fe0;
+  --c4-board-dark: #2257b8;
+  --c4-board-edge: #173f88;
+  --c4-hole: #12131d;
+}
+
+#c4-game {
+  padding-left: calc(16px + var(--safe-left));
+  padding-right: calc(16px + var(--safe-right));
+}
+
+#c4-game .bar {
+  padding: 0;
+  margin-left: -8px;
+}
+
+/* ---------- players ---------- */
+
+.c4-players {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.c4-pl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: rgba(242, 243, 250, 0.05);
+  opacity: 0.5;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.c4-pl.on {
+  opacity: 1;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.c4-pl.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.c4-mini {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset 0 0 0 3px var(--cd);
+}
+
+.c4-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.c4-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.c4-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* The idle player has no status: their name centers in the card. */
+.c4-sub:empty {
+  display: none;
+}
+
+.c4-wins {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- board ---------- */
+
+.c4-play {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.c4-wrap {
+  /* Seven columns across the width, capped so the board and controls fit the height. */
+  --cell: min(
+    calc((100vw - 32px - var(--safe-left) - var(--safe-right) - 20px) / 7),
+    60px,
+    calc((100dvh - 340px) / 7.3)
+  );
+  margin: 0 auto;
+}
+
+.c4-rail {
+  position: relative;
+  height: calc(var(--cell) * 1.15);
+  margin: 0 10px;
+}
+
+.c4-hover {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  transition: transform 0.16s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.c4-hover .c4-disc {
+  animation: c4-bob 1.4s ease-in-out infinite;
+}
+
+.c4-hover::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  border: 6px solid transparent;
+  border-top-color: var(--muted);
+  opacity: 0.7;
+}
+
+@keyframes c4-bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.c4-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, var(--cell));
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--c4-board), var(--c4-board-dark));
+  box-shadow:
+    0 6px 0 var(--c4-board-edge),
+    0 14px 28px rgba(0, 0, 0, 0.4);
+  touch-action: manipulation;
+}
+
+.c4-cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.c4-cell::before {
+  content: "";
+  position: absolute;
+  width: 84%;
+  height: 84%;
+  border-radius: 50%;
+  background: var(--c4-hole);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6);
+}
+
+.c4-col {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 10px;
+  width: var(--cell);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.09);
+  pointer-events: none;
+  transition:
+    transform 0.16s cubic-bezier(0.3, 0.7, 0.4, 1),
+    opacity 0.2s;
+}
+
+.c4-disc {
+  position: relative;
+  width: 84%;
+  height: 84%;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow:
+    inset 0 0 0 calc(var(--cell) * 0.08) var(--cd),
+    inset 0 -3px 0 calc(var(--cell) * 0.08) rgba(0, 0, 0, 0.15);
+}
+
+.c4-disc::after {
+  content: "";
+  position: absolute;
+  width: 22%;
+  height: 22%;
+  left: 24%;
+  top: 22%;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.4;
+}
+
+.c4-disc.s0 {
+  --c: var(--p1);
+  --cd: var(--p1-dark);
+}
+
+.c4-disc.s1 {
+  --c: var(--p2);
+  --cd: var(--p2-dark);
+}
+
+.c4-disc.win {
+  animation: c4-win 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes c4-win {
+  to {
+    transform: scale(0.82);
+    box-shadow:
+      inset 0 0 0 calc(var(--cell) * 0.08) var(--cd),
+      0 0 0 4px #fff;
+  }
+}
+
+.c4-falling {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* ---------- controls ---------- */
+
+.c4-controls {
+  display: grid;
+  grid-template-columns: 76px 1fr 76px;
+  gap: 10px;
+  padding: 16px 0 18px;
+}
+
+.c4-ctl {
+  height: 68px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(242, 243, 250, 0.22);
+  background: rgba(242, 243, 250, 0.08);
+  transition:
+    transform 0.1s ease-out,
+    opacity 0.2s;
+}
+
+.c4-ctl:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.c4-ctl:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.c4-ctl svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.c4-drop {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--c);
+  background: var(--c);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 0 var(--cd);
+}
+
+.c4-drop svg {
+  width: 24px;
+  height: 24px;
+}
+
+.c4-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 18px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.c4-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.c4-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c4-hover .c4-disc,
+  .c4-disc.win {
+    animation: none;
+  }
+}

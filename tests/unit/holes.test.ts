@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { COURSE_PAR, HOLES } from "../../src/core/holes.ts";
-import { findShot } from "../../src/core/solver.ts";
+import { COURSE_PAR, HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 
 const NAMES = [
   "The Gate",

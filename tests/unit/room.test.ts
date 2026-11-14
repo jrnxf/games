@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { holeOf } from "../../src/core/match.ts";
+import { holeOf } from "../../src/games/mini-golf/core/match.ts";
 import {
   claimSeat,
   createRoom,
@@ -10,8 +10,8 @@ import {
   shoot,
   start,
   type RoomRecord,
-} from "../../src/core/room.ts";
-import { findShot } from "../../src/core/solver.ts";
+} from "../../src/games/mini-golf/core/room.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 
 const HOST = "a".repeat(32);
 const GUEST = "b".repeat(32);

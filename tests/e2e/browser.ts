@@ -5,13 +5,13 @@ import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dragFromPower } from "../../src/client/power.ts";
-import type { MatchState, Seat } from "../../src/core/match.ts";
+import { dragFromPower } from "../../src/games/mini-golf/client/power.ts";
+import type { MatchState, Seat } from "../../src/games/mini-golf/core/match.ts";
 
 export const VIEWPORT = "390x844x2,mobile,touch";
 
 /** Where screenshots go: E2E_SHOTS if set, else a temp folder. */
-export const SHOTS = process.env.E2E_SHOTS ?? join(tmpdir(), "minigolf-e2e");
+export const SHOTS = process.env.E2E_SHOTS ?? join(tmpdir(), "games-e2e");
 mkdirSync(SHOTS, { recursive: true });
 
 export interface ScreenState {
@@ -55,12 +55,21 @@ export class Browser {
     this.axi(["open", url]);
     this.axi(["emulate", "--viewport", VIEWPORT]);
     this.axi(["open", url]);
+    this.settle();
+  }
+
+  /** Waits for a screen to show: a game's code loads after the page does. */
+  settle(): void {
+    this.run(`await page.eval(async () => {
+      for (let i = 0; i < 200 && !document.querySelector(".screen.on"); i++) await new Promise((r) => setTimeout(r, 50));
+    });`);
   }
 
   /** Cuts the network, then reloads `url`: only the service worker can answer. */
   openOffline(url: string): void {
     this.axi(["emulate", "--network", "Offline"]);
     this.run(`await page.open(${JSON.stringify(url)});`);
+    this.settle();
   }
 
   eval<T>(fn: string): T {
@@ -69,7 +78,7 @@ export class Browser {
   }
 
   state(): ScreenState {
-    return this.eval<ScreenState>("() => window.__minigolf.state()");
+    return this.eval<ScreenState>("() => window.__miniGolf.state()");
   }
 
   click(selector: string): void {
@@ -109,7 +118,7 @@ export class Browser {
     this.run(`await page.eval(async () => {
       const c = document.getElementById("canvas");
       const r = c.getBoundingClientRect();
-      const len = ${dragFromPower(power)} * window.__minigolf.state().view.maxDrag;
+      const len = ${dragFromPower(power)} * window.__miniGolf.state().view.maxDrag;
       const sx = r.width / 2, sy = r.height / 2;
       const ex = sx - Math.cos(${angle}) * len, ey = sy - Math.sin(${angle}) * len;
       const fire = (type, x, y) => c.dispatchEvent(new PointerEvent(type, {
@@ -130,7 +139,7 @@ export class Browser {
     this.run(`await page.eval(() => {
       const c = document.getElementById("canvas");
       const r = c.getBoundingClientRect();
-      const len = ${dragFromPower(power)} * window.__minigolf.state().view.maxDrag;
+      const len = ${dragFromPower(power)} * window.__miniGolf.state().view.maxDrag;
       const x = r.width / 2 - Math.cos(${angle}) * len, y = r.height / 2 - Math.sin(${angle}) * len;
       c.dispatchEvent(new PointerEvent("pointerup", { pointerId: 11, pointerType: "touch", isPrimary: true, bubbles: true, clientX: r.left + x, clientY: r.top + y }));
     });`);

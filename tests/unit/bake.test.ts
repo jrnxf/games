@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { COURSE_H, COURSE_W } from "../../src/core/constants.ts";
-import { HOLES } from "../../src/core/holes.ts";
-import { OBL, bake, groundAt, type BakeResult } from "../../src/client/bake.ts";
+import { COURSE_H, COURSE_W } from "../../src/games/mini-golf/core/constants.ts";
+import { HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { OBL, bake, groundAt, type BakeResult } from "../../src/games/mini-golf/client/bake.ts";
 
 const RES = 1.5;
 const byName = (name: string) => HOLES.find((h) => h.name === name)!;
