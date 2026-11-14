@@ -51,10 +51,14 @@ export function partyView(party: PartyRecord, connected: [boolean, boolean]): Pa
   };
 }
 
+/** The name a seat gets when its player gives none. */
+export const seatName = (seat: Seat): string => `Player ${seat + 1}`;
+
 /**
  * Seats a player: back in their own seat by token (under the name they give
  * now), else the first free one. While the party is waiting, a guest with no
- * live socket (`connected`) gives up the seat to a newcomer.
+ * live socket (`connected`) gives up the seat to a newcomer. An empty `name`
+ * becomes the fallback for the seat it lands in.
  */
 export function claimSeat(
   party: PartyRecord,
@@ -63,24 +67,22 @@ export function claimSeat(
   connected: [boolean, boolean],
 ): Seat | ErrorCode {
   if (party.status === "ended") return "gone";
+  const take = (seat: Seat): Seat => {
+    party.seats[seat] = { token, name: name || seatName(seat) };
+    return seat;
+  };
   for (const seat of [0, 1] as const) {
-    const s = party.seats[seat];
-    if (s && s.token === token) {
-      s.name = name;
-      return seat;
-    }
+    if (party.seats[seat]?.token === token) return take(seat);
   }
   for (const seat of [0, 1] as const) {
-    if (!party.seats[seat]) {
-      party.seats[seat] = { token, name };
-      return seat;
-    }
+    if (!party.seats[seat]) return take(seat);
   }
-  if (party.status === "waiting" && !connected[1]) {
-    party.seats[1] = { token, name };
-    return 1;
-  }
-  return "full";
+  return guestIsStale(party, connected) ? take(1) : "full";
+}
+
+/** True while the guest's seat is up for grabs: the party is waiting and no socket holds it. */
+export function guestIsStale(party: PartyRecord, connected: [boolean, boolean]): boolean {
+  return party.status === "waiting" && !!party.seats[1] && !connected[1];
 }
 
 /** A player leaves on purpose. A waiting guest just frees the seat; otherwise the party ends. */
@@ -98,14 +100,21 @@ export function leave(party: PartyRecord, seat: Seat): void {
 
 /**
  * Opens `game` (a fresh one) on both phones, or closes the open one for the
- * menu when `game` is null. A game needs both players seated. False when
- * nothing changed.
+ * menu when `game` is null. The first game needs the guest seated and
+ * connected (`connected`): until then the seat is up for grabs, and a game
+ * would lock it. False when nothing changed.
  */
-export function pick(party: PartyRecord, seat: Seat, game: string | null, hosts: Hosts): boolean {
+export function pick(
+  party: PartyRecord,
+  seat: Seat,
+  game: string | null,
+  hosts: Hosts,
+  connected: [boolean, boolean],
+): boolean {
   if (party.status === "ended" || game === party.game) return false;
   if (game !== null) {
     const host = hosts[game];
-    if (!host || !party.seats[0] || !party.seats[1]) return false;
+    if (!host || !party.seats[0] || !party.seats[1] || guestIsStale(party, connected)) return false;
     party.state = host.start();
     party.status = "together";
   } else {

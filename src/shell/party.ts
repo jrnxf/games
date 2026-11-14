@@ -95,6 +95,9 @@ class GameChannel implements Channel {
   }
 }
 
+/** Clients that left their party while disconnected, by code, until the leave is sent. */
+const leavers = new Map<string, PartyClient>();
+
 export class PartyClient {
   readonly code: string;
   /** This phone's seat, once the server has seated it. */
@@ -106,8 +109,16 @@ export class PartyClient {
   channel: GameChannel | null = null;
   private socket: PartySocket;
   private onChange: () => void;
+  /** The game this phone went back to the menu from while disconnected: the pick waits for the socket. */
+  private leftGame: string | null = null;
+  /** Set once `leave()` is waiting for the socket to say so. */
+  private leaving = false;
 
-  /** Joins party `code` as `name`. `onChange` runs after every change to the fields above. */
+  /**
+   * A client for party `code` as `name`. `onChange` runs after every change to
+   * the fields above. Nothing happens until `start()`, so the caller can hold
+   * on to the client before its first change.
+   */
   constructor(code: string, name: string, onChange: () => void) {
     this.code = code;
     this.onChange = onChange;
@@ -115,23 +126,55 @@ export class PartyClient {
       message: (m) => this.onMessage(m),
       status: (s) => {
         this.status = s;
-        // Open comes right after the welcome: the game catches up on whatever it missed.
-        if (s === "open") this.channel?.sync();
+        if (s === "open") {
+          // Seated again: send what waited for the socket.
+          if (this.leaving) return this.leave();
+          if (this.leftGame !== null) this.socket.send({ t: "pick", game: null });
+          // Open comes right after the welcome: the game catches up on whatever it missed.
+          this.channel?.sync();
+        }
         this.channel?.changed();
         this.onChange();
       },
     });
+  }
+
+  /** Connects. Joining a party again calls off a leave of it still waiting to be sent. */
+  start(): void {
+    leavers.get(this.code)?.close();
     this.socket.connect();
   }
 
-  /** The other player, once someone has taken the seat. */
+  /**
+   * The other player, once someone has taken the seat. A guest who dropped
+   * before the first game doesn't count: their seat is up for grabs.
+   */
   get friend(): PlayerView | null {
-    return this.me === null ? null : (this.view?.players[this.me === 0 ? 1 : 0] ?? null);
+    if (this.me === null || !this.view) return null;
+    const friend = this.view.players[this.me === 0 ? 1 : 0];
+    if (!friend || (this.me === 0 && this.view.status === "waiting" && !friend.connected)) return null;
+    return friend;
   }
 
-  /** Opens `game` on both phones, or goes back to the menu for null. False while disconnected. */
+  /** The game this phone should show: the party's, unless this phone already went back to the menu. */
+  get game(): string | null {
+    return this.leftGame === null ? (this.view?.game ?? null) : null;
+  }
+
+  /**
+   * Opens `game` on both phones, or goes back to the menu for null. Back to
+   * the menu always works: while disconnected this phone goes at once, and the
+   * party is told when the socket is back. False when nothing was done.
+   */
   pick(game: string | null): boolean {
-    return this.send({ t: "pick", game });
+    if (this.send({ t: "pick", game })) return true;
+    const open = this.view?.game ?? null;
+    if (game !== null || this.me === null || open === null) return false;
+    if (this.leftGame !== open) {
+      this.leftGame = open;
+      this.onChange();
+    }
+    return true;
   }
 
   /** A channel for `game`, replacing any other. The shell hands it to the game on open. */
@@ -145,16 +188,26 @@ export class PartyClient {
     this.channel = null;
   }
 
-  /** Leaves the party for good: the friend is told and the code stops working for this phone. */
+  /**
+   * Leaves the party for good: the friend is told and the code stops working
+   * for this phone. While disconnected, the client stops reporting changes and
+   * keeps trying until the socket is back to say so.
+   */
   leave(): void {
-    this.send({ t: "leave" });
-    this.close();
+    this.channel = null;
+    this.onChange = () => {};
+    // Sent, or the party is gone anyway.
+    if (this.send({ t: "leave" }) || this.status === "closed") return this.close();
+    this.leaving = true;
+    leavers.get(this.code)?.close();
+    leavers.set(this.code, this);
   }
 
   /** Stops talking to the party without leaving it (the seat stays ours). */
   close(): void {
     this.channel = null;
     this.socket.close();
+    if (leavers.get(this.code) === this) leavers.delete(this.code);
   }
 
   send(msg: Parameters<PartySocket["send"]>[0]): boolean {
@@ -167,9 +220,11 @@ export class PartyClient {
         this.me = msg.seat;
         this.view = msg.party;
         this.error = null;
+        this.settleLeft();
         break;
       case "party":
         this.view = msg.party;
+        this.settleLeft();
         this.channel?.changed();
         break;
       case "game":
@@ -183,5 +238,10 @@ export class PartyClient {
         return;
     }
     this.onChange();
+  }
+
+  /** The party moved on from the game this phone left (to the menu, or to a new pick): follow it again. */
+  private settleLeft() {
+    if (this.leftGame !== null && this.view?.game !== this.leftGame) this.leftGame = null;
   }
 }

@@ -64,6 +64,17 @@ function leaveGame() {
   party?.closeChannel();
 }
 
+/**
+ * Clears the screen for a new route: any game closed, the app's own colours,
+ * and a slow game load called off. With `home`, the URL goes back to the menu too.
+ */
+function resetScreen(home: boolean) {
+  ++routeId;
+  leaveGame();
+  theme(null);
+  if (home && location.pathname !== "/") history.replaceState(null, "", "/");
+}
+
 function showMenu() {
   leaveGame();
   theme(null);
@@ -146,15 +157,12 @@ async function route(): Promise<void> {
   const session = loadSession();
   if (!session) {
     // A link straight to a game: ask how they're playing, then carry on to it.
-    ++routeId;
-    leaveGame();
-    theme(null);
+    resetScreen(false);
     return pickSession(null, null);
   }
   if (session.mode === "online") return routeOnline(session, target);
   if (!target) {
-    ++routeId;
-    if (path !== "/") history.replaceState(null, "", "/");
+    resetScreen(true);
     return showMenu();
   }
   return openGame(target.info, target.rest, session);
@@ -205,10 +213,7 @@ function toast(text: string) {
 /** A user went to `target` online: open what the party has open, or ask it for a change. */
 function routeOnline(session: OnlineSession, target: { info: GameInfo; rest: string } | null) {
   if (!session.party) {
-    ++routeId;
-    leaveGame();
-    theme(null);
-    if (location.pathname !== "/") history.replaceState(null, "", "/");
+    resetScreen(true);
     return pickParty();
   }
   connect(session.party, session.names[0]);
@@ -222,9 +227,10 @@ function routeOnline(session: OnlineSession, target: { info: GameInfo; rest: str
     return showMenu();
   }
   const want = target?.info.id ?? null;
-  if (why || want === p.view.game) return follow(true);
+  if (why || want === p.game) return follow(true);
   if (want === null) {
     // Back to the menu (the back button, say): close here at once, then for both.
+    // While disconnected the party hears it once the socket is back.
     if (p.pick(null)) {
       ++routeId;
       followed = null;
@@ -242,7 +248,7 @@ function follow(force = false) {
   const p = party;
   const view = p?.view;
   if (!p || !view || p.me === null) return;
-  const game = view.game;
+  const game = p.game;
   const changed = game !== followed;
   const was = followed;
   followed = game;
@@ -272,7 +278,8 @@ function follow(force = false) {
   ++routeId;
   showMenu();
   const by = view.pickedBy;
-  if (was && changed && by !== null && by !== p.me) {
+  // The friend's doing only when the party itself went back (not this phone, while offline).
+  if (was && changed && view.game === null && by !== null && by !== p.me) {
     toast(`${view.players[by]?.name ?? "Your friend"} went back to the menu`);
   }
 }
@@ -288,7 +295,19 @@ function connect(code: string, name: string) {
   party?.close();
   followed = undefined;
   partyName = name;
-  party = new PartyClient(code, name, onParty);
+  // Only the current client may move the screens: an old one can still be mid-change.
+  const client = new PartyClient(code, name, () => {
+    if (party === client) onParty();
+  });
+  party = client;
+  client.start();
+}
+
+/** Tells party `code` this phone left it, in the background, once it can reach it. */
+function leaveInBackground(code: string, name: string) {
+  const client = new PartyClient(code, name, () => {});
+  client.start();
+  client.leave();
 }
 
 function disconnect() {
@@ -297,21 +316,54 @@ function disconnect() {
   followed = undefined;
 }
 
-/** Joins party `code` from the start screens: saved once the party seats this phone. */
+/**
+ * Joins party `code` from the start screens or an invite: saved once the party
+ * seats this phone. The party it was in stays saved until then, and is told
+ * this phone left only once the new one has a seat for it.
+ */
 function join(code: string) {
   const s = loadSession();
   if (s?.mode !== "online") return;
   if (s.party === code && party?.code === code && party.me !== null) return void go("/");
-  disconnect();
-  saveSession({ ...s, party: null });
   joining = code;
   pickParty(`Joining party ${code}...`, "busy");
   connect(code, s.names[0]);
 }
 
+/** The party seated this phone: it's ours now, and a reload rejoins it. */
+function joined(code: string) {
+  joining = null;
+  const s = loadSession();
+  if (s?.mode !== "online") return;
+  if (s.party && s.party !== code) leaveInBackground(s.party, s.names[0]);
+  saveSession({ ...s, party: code });
+}
+
+/** A join failed: back to the party this phone was in, if any, else the party step. */
+function joinFailed(why: string) {
+  joining = null;
+  const s = loadSession();
+  if (s?.mode !== "online" || !s.party) return forget(why, true);
+  connect(s.party, s.names[0]);
+  resetScreen(true);
+  void route();
+  toast(why);
+}
+
+/**
+ * Leaves the party for good. The client is let go, not closed: while
+ * disconnected it still has to tell the party once the socket is back.
+ */
+function quitParty() {
+  const p = party;
+  party = null;
+  followed = undefined;
+  p?.leave();
+}
+
 /** Leaves the party for good, then asks for a new one. */
 function leaveParty() {
-  party?.leave();
+  quitParty();
   forget("", false);
 }
 
@@ -321,10 +373,7 @@ function forget(note: string, error: boolean) {
   joining = null;
   const s = loadSession();
   if (s?.mode === "online") saveSession({ ...s, party: null });
-  ++routeId;
-  leaveGame();
-  theme(null);
-  if (location.pathname !== "/") history.replaceState(null, "", "/");
+  resetScreen(true);
   pickParty(note, error ? "error" : "info");
 }
 
@@ -341,27 +390,19 @@ function onParty() {
   const code = p.code;
 
   if (joining === code) {
-    if (p.error || p.status === "closed") {
-      const why = REFUSED[p.error ?? "gone"] ?? REFUSED.gone!;
-      return forget(why, true);
-    }
+    if (p.error || p.status === "closed") return joinFailed(REFUSED[p.error ?? "gone"] ?? REFUSED.gone!);
     if (p.me === null || p.status !== "open") return;
-    // Seated: now it's ours, and a reload rejoins it.
-    joining = null;
-    const s = loadSession();
-    if (s?.mode === "online") saveSession({ ...s, party: code });
+    joined(code);
     if (location.pathname !== "/") history.replaceState(null, "", "/");
     followed = undefined;
     return follow(true);
   }
 
-  if (p.error === "gone" || p.error === "full" || (p.status === "closed" && !p.error)) {
-    return forget(REFUSED[p.error ?? "gone"]!, true);
-  }
+  // Only the server saying so ends a party here: a dropped socket reconnects.
+  if (p.error === "gone" || p.error === "full") return forget(REFUSED[p.error]!, true);
   if (p.error === "version" || p.error === "replaced") {
     if (current) {
-      ++routeId;
-      if (location.pathname !== "/") history.replaceState(null, "", "/");
+      resetScreen(true);
       showMenu();
     } else if ($("games").classList.contains("on")) {
       paintMenu(loadSession()!);
@@ -375,15 +416,14 @@ function onParty() {
     const name = view.leftBy === null ? "Your friend" : (view.players[view.leftBy]?.name ?? "Your friend");
     return forget(`${name} left the party.`, false);
   }
-  if (p.status === "open") follow();
+  // Seated (even while reconnecting, when this phone may have left a game on its own): follow the party.
+  if (p.view && p.me !== null) follow();
   else if ($("games").classList.contains("on")) paintMenu(loadSession()!);
 }
 
 /** An invite link: join it, asking for a name first if this phone has none. */
 async function followInvite(code: string): Promise<void> {
-  ++routeId;
-  leaveGame();
-  theme(null);
+  resetScreen(false);
   if (!isCode(code)) {
     history.replaceState(null, "", "/");
     return route();
@@ -395,7 +435,6 @@ async function followInvite(code: string): Promise<void> {
   }
   const name = s?.names[0] ?? lastNames()[0];
   if (!name) return askName(code, partyHost(code));
-  if (party && s?.mode !== "online") disconnect();
   saveSession({ mode: "online", names: [name], party: s?.mode === "online" ? s.party : null });
   join(code);
 }
@@ -420,11 +459,17 @@ tiles.addEventListener("click", (e) => {
   if (!a) return;
   // A game that can't run in this mode stays put; its tile says why.
   if (a.classList.contains("off")) return e.preventDefault();
+  // Online, the tile always asks the party; both phones open the game when it agrees.
+  // Never a new tab: it would say hello with this phone's token and push this tab out.
+  if (loadSession()?.mode === "online") {
+    e.preventDefault();
+    party?.pick(a.dataset.id!);
+    return;
+  }
+  // Offline, a modified click may open the game in a new tab.
   if (e.metaKey || e.ctrlKey || e.shiftKey) return;
   e.preventDefault();
-  // Online, the tile asks the party; both phones open the game when it agrees.
-  if (loadSession()?.mode === "online" && party) party.pick(a.dataset.id!);
-  else go(a.pathname);
+  go(a.pathname);
 });
 
 $("menu-chip").addEventListener("click", () => pickSession(loadSession(), () => show("games")));
@@ -471,8 +516,7 @@ initStart({
   done(s) {
     if (s.mode !== "online") {
       // Another way of playing: the friend is told the party is over.
-      party?.leave();
-      disconnect();
+      quitParty();
       return void route();
     }
     if (!s.party) return pickParty();

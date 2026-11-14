@@ -59,13 +59,10 @@ export class Party extends DurableObject<Env> {
   }
 
   /** Info for the invite screen, or null when the party does not exist. */
-  async info(): Promise<{ host: string | null; open: boolean } | null> {
+  async info(): Promise<{ host: string | null } | null> {
     const party = this.party;
     if (!party || party.status === "ended") return null;
-    return {
-      host: party.seats[0]?.name ?? null,
-      open: !party.seats[1] || (party.status === "waiting" && this.sockets(1).length === 0),
-    };
+    return { host: party.seats[0]?.name ?? null };
   }
 
   override async fetch(): Promise<Response> {
@@ -92,7 +89,7 @@ export class Party extends DurableObject<Env> {
 
     switch (msg.t) {
       case "pick":
-        if (pick(party, seat, msg.game, HOSTS)) await this.saveAndShare();
+        if (pick(party, seat, msg.game, HOSTS, this.connected())) await this.saveAndShare();
         return;
       case "sync": {
         const m = sync(party, seat, msg.game, HOSTS);
@@ -140,8 +137,8 @@ export class Party extends DurableObject<Env> {
 
   private async hello(ws: WebSocket, party: PartyRecord, v: number, token: string, name: string) {
     if (v !== PROTOCOL) return this.reject(ws, "version", CLOSE_GONE);
-    const fallback = party.seats[0] ? "Player 2" : "Player 1";
-    const seat = claimSeat(party, token, cleanName(name, fallback), this.connected());
+    // An empty name gets the fallback for the seat it lands in.
+    const seat = claimSeat(party, token, cleanName(name, ""), this.connected());
     if (typeof seat !== "number") return this.reject(ws, seat, seat === "full" ? CLOSE_FULL : CLOSE_GONE);
     // The same player on a fresh connection replaces their old one.
     for (const other of this.sockets(seat)) {

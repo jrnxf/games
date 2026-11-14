@@ -134,11 +134,8 @@ async function protocolTest() {
     welcomeA.seat === 0 && welcomeA.party.status === "waiting" && welcomeA.party.game === null,
     "the maker takes seat 0, at the menu",
   );
-  const info = (await (await fetch(`${ORIGIN}/api/parties/${code}`)).json()) as {
-    host: string;
-    open: boolean;
-  };
-  check(info.host === "Ana" && info.open, "the invite sees the maker's name and an open seat");
+  const info = (await (await fetch(`${ORIGIN}/api/parties/${code}`)).json()) as { host: string };
+  check(info.host === "Ana", "the invite sees the maker's name");
 
   const kai = await Client.join(code, token("b"), "Kai");
   check((await kai.next("welcome")).seat === 1, "a friend joins seat 1 from the invite");
@@ -156,10 +153,17 @@ async function protocolTest() {
   // The friend's phone drops before they play; another phone takes the seat.
   kai.close();
   await ana.next("party", (m) => m.party.players[1]?.connected === false);
-  const reopened = (await (await fetch(`${ORIGIN}/api/parties/${code}`)).json()) as { open: boolean };
-  check(reopened.open, "the seat is open again after the friend drops");
+  // A game now would lock the dropped friend's seat: the pick is refused.
+  ana.inbox.length = 0;
+  ana.send({ t: "pick", game: GOLF });
+  await sleep(300);
+  check(!ana.inbox.some((m) => m.t === "party"), "the maker can't start a game with the friend's seat empty");
   const kaiPhone = await Client.join(code, token("e"), "Kai");
-  check((await kaiPhone.next("welcome")).seat === 1, "a new phone takes a dropped friend's seat");
+  const welcomeK = await kaiPhone.next("welcome");
+  check(
+    welcomeK.seat === 1 && welcomeK.party.game === null && welcomeK.party.status === "waiting",
+    "a new phone takes a dropped friend's seat",
+  );
   await ana.next("party", (m) => m.party.players[1]?.connected === true);
   const oldPhone = await Client.join(code, token("b"), "Kai");
   check((await oldPhone.next("error")).code === "full", "the old phone no longer owns the seat");
@@ -272,6 +276,9 @@ async function uiTest() {
   console.log("part 2: two phones through the UI");
   const a = new Browser("games-e2e-online-a");
   const b = new Browser("games-e2e-online-b");
+  // A second screen on the maker's own phone, later on.
+  const c = new Browser("games-e2e-online-c");
+  const TOAST_ON = `() => document.getElementById("menu-toast").classList.contains("on")`;
   const tile = (id: string) => `#tiles a[data-id="${id}"]`;
   const tileOff = (p: Browser, id: string) =>
     p.eval<boolean>(`() => document.querySelector('${tile(id)}').classList.contains("off")`);
@@ -324,9 +331,15 @@ async function uiTest() {
     check(!b.visible("c4-home"), "a link to a game with no online play shows the menu and says why");
     b.screenshot("online-not-online-yet");
 
-    // Ana picks golf: both phones open it.
-    a.click(tile(GOLF));
+    // Ana picks golf, with Ctrl held: online a tile never opens a new tab (it would push this one out).
+    const prevented = a.eval<boolean>(`() => {
+      const e = new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true });
+      document.querySelector('${tile(GOLF)}').dispatchEvent(e);
+      return e.defaultPrevented;
+    }`);
+    check(prevented, "a Ctrl-click on a tile stays in this tab");
     await waitFor("both in golf", () => a.state().match && b.state().match);
+    check(true, "the tile asks the party, and both phones open golf");
     check(a.state().me === 0 && b.state().me === 1, "each phone plays its own seat");
     check(a.state().canAim && !b.state().canAim, "the maker's turn on the maker's phone only");
     check(b.text("#turn-who") === "Ana is aiming", "the friend's phone says who is aiming");
@@ -391,12 +404,15 @@ async function uiTest() {
     await sameState(a, b, 2);
     check(true, "play carries on after the reconnect");
 
-    // Kai leaves the party from the chip; Ana is told.
+    // The connection drops again. Kai can still leave the game, then the party:
+    // his phone goes at once, and the party hears it once the server is back.
     await waitFor("friend idle", () => !b.state().busy);
+    await stopWorker();
+    await waitFor("friend notices", () => b.visible("banner") && b.text("#banner").includes("reconnecting"));
     b.click("#menu-btn");
     b.click("#menu-quit");
-    await waitFor("both at the menu again", () => atMenu(a) && atMenu(b));
-    check(a.text("#menu-toast") === "Kai went back to the menu", "the maker is told why");
+    await waitFor("friend at the menu while offline", () => atMenu(b));
+    check(!atMenu(a) && a.state().match !== null, "offline, leaving the game works on the friend's phone");
     b.click("#menu-chip");
     await waitFor("mode picker", () => b.visible("start-mode"));
     b.click('[data-mode="online"]');
@@ -405,11 +421,14 @@ async function uiTest() {
     b.screenshot("online-names-in-party");
     b.click("#start-leave");
     await waitFor("friend on the party step", () => b.visible("start-party"));
+    await startWorker();
     await waitFor(
       "maker told",
       () => a.visible("start-party") && a.text("#party-note") === "Kai left the party.",
+      30_000,
     );
-    check(true, "the maker sees that the friend left");
+    check(true, "a leave made while offline reaches the maker once the server is back");
+    check(b.visible("start-party"), "the friend stays out of the party");
     a.screenshot("online-friend-left");
 
     // A new party, joined by typing the code.
@@ -435,6 +454,59 @@ async function uiTest() {
     );
     check(true, "continuing with the same party keeps it");
 
+    // Ana's party opens on another screen (a copy of her phone's storage) and pushes this one out.
+    const storage = a.eval<string>(`() => JSON.stringify(Object.fromEntries(
+      Object.keys(localStorage).filter((k) => k.startsWith("shell.")).map((k) => [k, localStorage.getItem(k)])))`);
+    c.open(`${ORIGIN}/`);
+    c.eval(`() => {
+      for (const [k, v] of Object.entries(${storage})) localStorage.setItem(k, v);
+      location.reload();
+    }`);
+    await waitFor("pushed out", () => a.text("#menu-chip-text") === "Online · On another screen");
+    check(
+      a.text("#menu-toast") === "Playing on another screen now",
+      "the first screen is told it was replaced",
+    );
+    await waitFor("toast gone", () => !a.eval<boolean>(TOAST_ON));
+    c.stop();
+    // Ana takes it back from the chip: no stale "another screen" news while it reconnects.
+    a.click("#menu-chip");
+    await waitFor("mode picker", () => a.visible("start-mode"));
+    a.click('[data-mode="online"]');
+    await waitFor("names", () => a.visible("start-names"));
+    a.click("#start-go");
+    let replacedToast = false;
+    await waitFor("maker back", () => {
+      replacedToast ||=
+        a.eval<boolean>(TOAST_ON) && a.text("#menu-toast") === "Playing on another screen now";
+      return atMenu(a) && a.text("#menu-chip-text") === "Online · with Kai";
+    });
+    check(!replacedToast, "taking the seat back shows no stale “another screen” toast");
+
+    // A dead invite link while in a party: Ana stays in hers, and Kai never sees her go.
+    a.eval(`() => { location.href = "/p/ZZZZZ"; }`);
+    await waitFor(
+      "dead invite",
+      () => atMenu(a) && a.text("#menu-toast") === "That party has ended or expired. Make a new code.",
+    );
+    await waitFor("maker still in", () => a.text("#menu-chip-text") === "Online · with Kai");
+    check(
+      a.eval<string | null>(`() => localStorage.getItem("shell.party")`) === code2,
+      "a failed join keeps the party this phone was in",
+    );
+    check(b.text("#menu-chip-text") === "Online · with Ana", "the friend still sees the maker");
+
+    // A good invite to another party: Ana moves over, and the old party hears she left.
+    const res3 = await fetch(`${ORIGIN}/api/parties`, { method: "POST" });
+    const { code: code3 } = (await res3.json()) as { code: string };
+    a.eval(`() => { location.href = "/p/${code3}"; }`);
+    await waitFor("maker in the new party", () => atMenu(a) && a.text("#menu-party-code") === code3);
+    await waitFor(
+      "friend told",
+      () => b.visible("start-party") && b.text("#party-note") === "Ana left the party.",
+    );
+    check(true, "joining another party leaves the old one, and the friend is told");
+
     for (const [name, browser] of [
       ["maker", a],
       ["friend", b],
@@ -451,6 +523,7 @@ async function uiTest() {
   } finally {
     a.stop();
     b.stop();
+    c.stop();
   }
 }
 

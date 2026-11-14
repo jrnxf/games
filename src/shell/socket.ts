@@ -23,8 +23,12 @@ const PING_MS = 15_000;
 const PROBE_MS = 4_000;
 /** No message for this long means the connection is dead even if the browser has not noticed. */
 const STALE_MS = 40_000;
-/** Server close codes after which reconnecting would not help. */
-const FINAL = new Set([CLOSE_REPLACED, CLOSE_GONE, CLOSE_FULL, 1000]);
+/**
+ * Server close codes after which reconnecting would not help. The server sends
+ * each with an error first. Any other close (a plain 1000 from a runtime
+ * restart or a proxy, say) is a drop: reconnect.
+ */
+const FINAL = new Set([CLOSE_REPLACED, CLOSE_GONE, CLOSE_FULL]);
 
 export class PartySocket {
   private ws: WebSocket | null = null;
