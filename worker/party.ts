@@ -148,7 +148,9 @@ export class Party extends DurableObject<Env> {
       }
     }
     ws.serializeAttachment({ seat } satisfies Attachment);
-    await this.save();
+    // An ended party only lets the stayed player back in to hear who left.
+    // Saving would re-arm the alarm and keep it alive past ENDED_TTL_MS.
+    if (party.status !== "ended") await this.save();
     this.send(ws, { t: "welcome", seat, party: this.view() });
     this.broadcast({ t: "party", party: this.view() }, ws);
   }

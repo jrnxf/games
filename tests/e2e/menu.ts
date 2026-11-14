@@ -122,21 +122,37 @@ try {
   await waitFor("solo board", () => phone.visible("c4-game"));
   check(c4().turn === 0 && !c4().thinking && c4().level === "hard", "Zoe starts against Hard");
 
-  await dropIn(0);
-  const blocked = phone.eval<{ thinking: boolean; still: boolean }>(`() => {
+  // Drop, then check the thinking state inside the page in one go: the
+  // computer waits only 500 ms, too short to span several browser calls.
+  while (c4().col > 0) phone.click("#c4-left");
+  const blocked = phone.eval<{
+    thinking: boolean;
+    still: boolean;
+    wait: boolean;
+    controls: boolean;
+    label: string;
+  }>(`async () => {
     const api = window.__connectFour;
+    const shown = (id) => !document.getElementById(id).hidden;
+    document.getElementById("c4-drop").click();
+    const t0 = Date.now();
+    while (!api.state().thinking && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 5));
     const before = api.state();
     document.querySelectorAll("#c4-board .c4-cell")[38].click();
     document.querySelectorAll("#c4-board .c4-cell")[39].click();
     dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
     const after = api.state();
-    return { thinking: before.thinking, still: !after.busy && after.col === before.col && after.moves.length === before.moves.length };
+    return {
+      thinking: before.thinking && after.thinking,
+      still: !after.busy && after.col === before.col && after.moves.length === before.moves.length,
+      wait: shown("c4-wait"),
+      controls: shown("c4-controls"),
+      label: document.getElementById("c4-wait").innerText.trim(),
+    };
   }`);
   check(blocked.thinking && blocked.still, "taps and keys do nothing while the computer is thinking");
   check(
-    phone.visible("c4-wait") &&
-      !phone.visible("c4-controls") &&
-      phone.text("#c4-wait").trim() === "Computer is thinking",
+    blocked.wait && !blocked.controls && blocked.label === "Computer is thinking",
     "the controls give way to “Computer is thinking”",
   );
   await computerMoved();

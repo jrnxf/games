@@ -3,7 +3,7 @@ import type { GameInfo } from "../../shell/games.ts";
 export default {
   id: "connect-four",
   title: "Connect Four",
-  modes: { solo: "computer", "pass-and-play": true, online: false },
+  modes: { solo: "computer", "pass-and-play": true, online: true },
   themeColor: "#181a28",
   tile: ["#3b80f0", "#2257b8"],
   art: `<rect x="14" y="10" width="72" height="54" rx="8" fill="#1d4fa8"/>

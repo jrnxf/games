@@ -45,6 +45,8 @@
     </div>
   </div>
   <div class="c4-play">
+    <div class="c4-banner" id="c4-banner" role="status" hidden></div>
+    <div class="c4-toast" id="c4-toast" role="status"></div>
     <div class="c4-wrap">
       <div class="c4-rail">
         <div class="c4-hover" id="c4-hover"><div class="c4-disc" id="c4-hover-disc"></div></div>
@@ -67,11 +69,13 @@
   </div>
   <div class="c4-wait" id="c4-wait" hidden>
     <p role="status">
-      Computer is thinking<span class="c4-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span id="c4-wait-text">Computer is thinking</span
+      ><span class="c4-dots" aria-hidden="true"><i></i><i></i><i></i></span>
     </p>
   </div>
   <div class="c4-result" id="c4-result" hidden>
     <h2 id="c4-result-title" role="status"></h2>
+    <p class="c4-note" id="c4-note" hidden></p>
     <div class="c4-result-row">
       <button class="btn outline" data-menu>All games</button>
       <button class="btn primary" id="c4-again">Play again</button>

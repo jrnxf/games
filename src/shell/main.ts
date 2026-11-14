@@ -10,7 +10,7 @@ import "./menu.css";
 
 import { isCode, normalizeCode } from "../party/protocol.ts";
 import { $, show } from "./dom.ts";
-import { GAMES, blurb, unsupported, type GameInfo, type GameModule } from "./games.ts";
+import { GAMES, blurb, refusal, unsupported, type GameInfo, type GameModule } from "./games.ts";
 import { go, onRoute } from "./nav.ts";
 import { PartyClient, createParty, invitePath, partyHost } from "./party.ts";
 import {
@@ -170,11 +170,11 @@ async function route(): Promise<void> {
 
 async function openGame(info: GameInfo, rest: string, session: Session) {
   const id = ++routeId;
-  const why = unsupported(info, session.mode);
+  const why = refusal(info, session.mode);
   if (why) {
     history.replaceState(null, "", "/");
     showMenu();
-    return toast(`${info.title}: ${why.toLowerCase()}`);
+    return toast(why);
   }
   if (current && current.info !== info) leaveGame();
   theme(info);
@@ -219,8 +219,8 @@ function routeOnline(session: OnlineSession, target: { info: GameInfo; rest: str
   connect(session.party, session.names[0]);
   const p = party!;
   // A link to a game this party can't play: stay on what it has open, and say why.
-  const why = target && unsupported(target.info, "online");
-  if (why) toast(`${target.info.title}: ${why.toLowerCase()}`);
+  const why = target && refusal(target.info, "online");
+  if (why) toast(why);
   if (!p.view || p.me === null) {
     // Not seated yet: the menu says so, and the welcome brings the party's game.
     ++routeId;
