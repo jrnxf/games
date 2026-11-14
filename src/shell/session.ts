@@ -2,6 +2,7 @@
 // who is playing. It is picked once, before the menu, and every game gets it
 // in open(). Saved under "shell." so it survives a reload.
 
+import type { Channel } from "./channel.ts";
 import { store } from "./storage.ts";
 
 export const MODES = ["solo", "pass-and-play", "online"] as const;
@@ -27,10 +28,15 @@ export interface PassAndPlaySession {
 export interface OnlineSession {
   mode: "online";
   names: readonly [string];
+  /** The party code, so reopening the app rejoins it. Null until the player makes or joins one. */
+  party: string | null;
 }
 
 /** Each mode carries only what it needs, so a mode can grow fields without touching the others. */
 export type Session = SoloSession | PassAndPlaySession | OnlineSession;
+
+/** What a game gets in open(). Online, it also carries the party's channel for that game. */
+export type GameSession = SoloSession | PassAndPlaySession | (OnlineSession & { channel: Channel });
 
 export const MODE_LABELS: Record<Mode, string> = {
   solo: "Solo",
@@ -61,7 +67,7 @@ export function loadSession(): Session | null {
   const [a, b] = lastNames();
   if (!mode || !a) return null;
   if (mode === "solo") return { mode, names: [a], difficulty: lastDifficulty() };
-  if (mode === "online") return { mode, names: [a] };
+  if (mode === "online") return { mode, names: [a], party: load("party") };
   return b ? { mode, names: [a, b] } : null;
 }
 
@@ -71,9 +77,10 @@ export function saveSession(s: Session): void {
   const names = s.names.length === 2 ? s.names : [s.names[0], lastNames()[1]];
   save("names", names.join("\n"));
   if (s.mode === "solo") save("difficulty", s.difficulty);
+  save("party", s.mode === "online" ? s.party : null);
 }
 
-/** The menu chip: "Solo · Colby", "Pass & play · Colby & Sam". */
+/** The menu chip: "Solo · Colby", "Pass & play · Colby & Sam". Online, the shell shows the friend instead. */
 export function describe(s: Session): string {
   return `${MODE_LABELS[s.mode]} · ${s.names.join(" & ")}`;
 }

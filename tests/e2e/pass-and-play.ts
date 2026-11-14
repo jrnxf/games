@@ -6,9 +6,9 @@ import { execFileSync } from "node:child_process";
 import { HOLES } from "../../src/games/mini-golf/core/holes.ts";
 import { total } from "../../src/games/mini-golf/core/match.ts";
 import { findShot } from "../../src/games/mini-golf/core/solver.ts";
-import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
+import { Browser, check, serverPort, SHOTS, startServer, waitFor } from "./browser.ts";
 
-const PORT = Number(process.env.E2E_PORT ?? 4317);
+const PORT = await serverPort();
 const URL = `http://127.0.0.1:${PORT}/mini-golf`;
 
 execFileSync("pnpm", ["build"], { stdio: "inherit" });

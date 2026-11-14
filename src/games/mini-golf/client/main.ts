@@ -5,22 +5,25 @@ import "./styles.css";
 import screens from "./screens.html?raw";
 
 import { formatVsPar } from "../core/solo.ts";
-import { cleanName, isCode, normalizeCode, type ErrorCode } from "../core/protocol.ts";
+import type { GolfClientMessage, GolfServerMessage } from "../core/protocol.ts";
+import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
-import type { Session } from "../../../shell/session.ts";
+import type { GameSession } from "../../../shell/session.ts";
 import { GameScreen } from "./game.ts";
 import { LocalGame, savedLocalGame } from "./local.ts";
-import { BASE, OnlineSession, roomPath } from "./online.ts";
+import { OnlineGame } from "./online.ts";
 import { SoloGame, loadBest } from "./solo.ts";
 import { sfx } from "./sfx.ts";
-import { load, save } from "./storage.ts";
+
+/** Where the shell mounts mini golf. */
+const BASE = "/mini-golf";
 
 document.body.insertAdjacentHTML("beforeend", screens);
 
 const screen = new GameScreen();
 /** How the shell says we're playing. Set on every open(). */
-let play: Session = { mode: "solo", names: ["You"], difficulty: "medium" };
-let room: OnlineSession | null = null;
+let play: GameSession = { mode: "solo", names: ["You"], difficulty: "medium" };
+let online: OnlineGame | null = null;
 
 // ---------- navigation ----------
 
@@ -32,22 +35,15 @@ function resumable() {
     : null;
 }
 
-/** The start of the current mode: the tee-off screen, or create-or-join online. */
+/** The tee-off screen for the current mode. */
 function goHome(replace = true) {
-  room?.end();
-  room = null;
   if (screen.active) screen.stop();
-  if (location.pathname !== BASE) history[replace ? "replaceState" : "pushState"](null, "", BASE);
-  if (play.mode === "online") {
-    $("online-lead").textContent =
-      `Playing as ${play.names[0]}. Make a room and send the link, or type a friend's code.`;
-    setNote("");
-    return show("online-setup");
-  }
+  if (location.pathname !== BASE) history[replace ? "replaceState" : "pushState"](history.state, "", BASE);
   $("home-tagline").textContent =
     play.mode === "solo"
       ? `${play.names[0]} · 18 holes · against par`
       : `${play.names.join(" vs ")} · 18 holes`;
+  $("go-play").hidden = false;
   $("resume-local").hidden = !resumable();
   const best = play.mode === "solo" ? loadBest() : null;
   $("solo-best").hidden = !best;
@@ -55,25 +51,29 @@ function goHome(replace = true) {
   show("home");
 }
 
-/** Shows `rest`, the path after /mini-golf: "" for home or /r/CODE for a room. */
-export function open(rest: string, session: Session): void {
+/** Shows `rest`, the path after /mini-golf (always "" now). */
+export function open(_rest: string, session: GameSession): void {
   play = session;
+  if (session.mode === "online") {
+    if (online) return;
+    // Home, briefly, until the server sends the round; then straight into it.
+    goHome();
+    const [a, b] = session.channel.players;
+    $("home-tagline").textContent = `${a.name} vs ${b.name} · 18 holes`;
+    $("go-play").hidden = true;
+    $("resume-local").hidden = true;
+    online = new OnlineGame(session.channel as Channel<GolfServerMessage, GolfClientMessage>, screen);
+    return;
+  }
   // The back button during a pass & play or solo game stays in the game.
-  if (rest === "" && screen.active && room === null) return;
-  const m = /^\/r\/([^/]+)$/.exec(rest);
-  const code = m ? normalizeCode(decodeURIComponent(m[1]!)) : "";
-  if (m && isCode(code)) void openRoom(code);
-  else goHome();
+  if (screen.active) return;
+  goHome();
 }
 
 export function close(): void {
-  room?.end();
-  room = null;
+  online?.end();
+  online = null;
   if (screen.active) screen.stop();
-}
-
-for (const el of document.querySelectorAll("[data-home]")) {
-  el.addEventListener("click", () => goHome());
 }
 
 document.addEventListener("pointerdown", () => sfx.unlock(), { capture: true });
@@ -99,148 +99,4 @@ $("go-play").addEventListener("click", () => {
 $("resume-local").addEventListener("click", () => {
   const saved = resumable();
   if (saved) new LocalGame(screen, saved.names, () => goHome(), saved.match);
-});
-
-// ---------- online ----------
-
-function setNote(text: string, error = false) {
-  const note = $("online-note");
-  note.textContent = text;
-  note.classList.toggle("error", error);
-}
-
-/** The name to play under: the session's, or the one typed on an invite. */
-function onlineName(typed?: string): string {
-  const name = cleanName(typed ?? play.names[0], "");
-  if (name) save("name", name);
-  return name;
-}
-
-$("create-room").addEventListener("click", async () => {
-  if (!navigator.onLine) return setNote("You're offline. Pass & play works without a connection.", true);
-  const btn = $<HTMLButtonElement>("create-room");
-  btn.disabled = true;
-  setNote("Opening a room...");
-  try {
-    const res = await fetch("/api/rooms", { method: "POST" });
-    if (!res.ok) throw new Error(String(res.status));
-    const { code } = (await res.json()) as { code: string };
-    history.pushState(null, "", roomPath(code));
-    setNote("");
-    connect(code, onlineName());
-  } catch {
-    setNote("Couldn't reach the server. Check your connection and try again.", true);
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-$("code-input").addEventListener("input", (e) => {
-  const input = e.target as HTMLInputElement;
-  input.value = normalizeCode(input.value);
-});
-
-$("code-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const code = normalizeCode($<HTMLInputElement>("code-input").value);
-  if (!isCode(code)) return setNote("Room codes are 5 letters and numbers.", true);
-  history.pushState(null, "", roomPath(code));
-  void openRoom(code);
-});
-
-function connect(code: string, name: string) {
-  room?.end();
-  room = new OnlineSession(code, name, screen, {
-    home: () => {
-      room = null;
-      goHome();
-    },
-    refused: (reason) => {
-      room = null;
-      showRefused(code, reason);
-    },
-  });
-  show("lobby");
-  $("room-code").textContent = code;
-  $("invite-url").textContent = `${location.host}${roomPath(code)}`;
-}
-
-/** Landing on an invite link: rejoin our own room, or ask for a name first. */
-async function openRoom(code: string) {
-  if (room?.code === code) return;
-  if (load("room") === code) return connect(code, load("name") ?? "");
-  show("join");
-  $("join-code").textContent = `Room ${code}`;
-  $("join-title").textContent = "You're invited";
-  $("join-lead").textContent = "Two players, 18 holes, about thirty minutes.";
-  $("join-name-field").hidden = false;
-  $<HTMLInputElement>("join-name").value = play.names[0];
-  $("join-go").hidden = false;
-  $("join-go").textContent = "Join game";
-  $("join-home").textContent = "Not now";
-  try {
-    const res = await fetch(`/api/rooms/${code}`);
-    if (res.status === 404) return showRefused(code, "gone");
-    const info = (await res.json()) as { status: string; host: string | null; open: boolean };
-    if (info.host) $("join-title").textContent = `${info.host} invited you`;
-    if (!info.open) {
-      // Already underway: it may be our own seat from another visit.
-      $("join-lead").textContent = "This game has already started. If it's yours, you can jump back in.";
-      $("join-go").textContent = "Rejoin";
-    }
-  } catch {
-    if (!navigator.onLine) $("join-lead").textContent = "You're offline. Connect to join this game.";
-  }
-}
-
-$("join-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const code = normalizeCode(location.pathname.slice(`${BASE}/r/`.length));
-  if (isCode(code)) connect(code, onlineName($<HTMLInputElement>("join-name").value));
-});
-
-function showRefused(code: string, reason: ErrorCode) {
-  show("join");
-  $("join-code").textContent = `Room ${code}`;
-  $("join-name-field").hidden = true;
-  $("join-go").hidden = true;
-  $("join-home").textContent = "Home";
-  const copy: Record<string, [string, string]> = {
-    full: ["Game's full", "Two players are already in this room. Ask for a new link."],
-    gone: ["Room closed", "This room has ended or expired. Start a new one from home."],
-    version: ["Update ready", "A newer version of the game is out. Reload the page to play."],
-  };
-  const [title, lead] = copy[reason] ?? copy.gone!;
-  $("join-title").textContent = title;
-  $("join-lead").textContent = lead;
-}
-
-// ---------- lobby ----------
-
-$("lobby-leave").addEventListener("click", () => room?.quit());
-$("start-round").addEventListener("click", () => room?.startRound());
-
-$("copy-link").addEventListener("click", async () => {
-  const url = `${location.origin}${location.pathname}`;
-  const btn = $("copy-link");
-  try {
-    await navigator.clipboard.writeText(url);
-    btn.textContent = "Copied";
-  } catch {
-    btn.textContent = "Copy failed";
-  }
-  setTimeout(() => (btn.textContent = "Copy link"), 1500);
-});
-
-$("share-link").addEventListener("click", async () => {
-  const url = `${location.origin}${location.pathname}`;
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: "Mini golf?", text: "Play a round of mini golf with me", url });
-    } catch {
-      // Dismissed.
-    }
-  } else {
-    $("copy-link").click();
-  }
 });

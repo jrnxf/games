@@ -1,4 +1,4 @@
-// One WebSocket to a room that keeps itself alive: it reconnects with
+// One WebSocket to a party that keeps itself alive: it reconnects with
 // backoff after a drop, right away when the tab comes back to the front or
 // the phone goes back online, and notices a silently dead connection.
 
@@ -9,7 +9,7 @@ import {
   PROTOCOL,
   type ClientMessage,
   type ServerMessage,
-} from "../core/protocol.ts";
+} from "../party/protocol.ts";
 
 export type SocketStatus = "connecting" | "open" | "reconnecting" | "closed";
 
@@ -23,10 +23,14 @@ const PING_MS = 15_000;
 const PROBE_MS = 4_000;
 /** No message for this long means the connection is dead even if the browser has not noticed. */
 const STALE_MS = 40_000;
-/** Server close codes after which reconnecting would not help. */
-const FINAL = new Set([CLOSE_REPLACED, CLOSE_GONE, CLOSE_FULL, 1000]);
+/**
+ * Server close codes after which reconnecting would not help. The server sends
+ * each with an error first. Any other close (a plain 1000 from a runtime
+ * restart or a proxy, say) is a drop: reconnect.
+ */
+const FINAL = new Set([CLOSE_REPLACED, CLOSE_GONE, CLOSE_FULL]);
 
-export class RoomSocket {
+export class PartySocket {
   private ws: WebSocket | null = null;
   private attempt = 0;
   private retry = 0;
@@ -54,13 +58,12 @@ export class RoomSocket {
     this.ws?.close();
     this.handlers.status(this.attempt === 0 ? "connecting" : "reconnecting");
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/api/rooms/${this.code}/ws`);
+    const ws = new WebSocket(`${proto}://${location.host}/api/parties/${this.code}/ws`);
     this.ws = ws;
     ws.onopen = () => {
       this.attempt = 0;
       this.lastHeard = Date.now();
       ws.send(JSON.stringify({ t: "hello", v: PROTOCOL, token: this.token, name: this.name }));
-      this.handlers.status("open");
       clearInterval(this.pinger);
       this.pinger = window.setInterval(() => this.ping(), PING_MS);
     };
@@ -73,7 +76,10 @@ export class RoomSocket {
       } catch {
         return;
       }
-      if (msg.t !== "pong") this.handlers.message(msg);
+      if (msg.t === "pong") return;
+      // Open means seated: the welcome comes first, so the party view is known.
+      this.handlers.message(msg);
+      if (msg.t === "welcome") this.handlers.status("open");
     };
     ws.onclose = (e) => {
       if (ws !== this.ws) return;
@@ -94,11 +100,7 @@ export class RoomSocket {
     return true;
   }
 
-  get open(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
-  }
-
-  /** Closes for good, e.g. after leaving the room. */
+  /** Closes for good, e.g. after leaving the party. */
   close(): void {
     this.stopped = true;
     clearTimeout(this.retry);

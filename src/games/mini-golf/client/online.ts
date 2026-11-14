@@ -1,196 +1,136 @@
-// Online play: lobby, live turns and presence for one room. The room server
-// is the authority; this phone predicts its own strokes so they start
-// rolling at once, then settles on whatever the server says.
+// Online play: live turns and presence over the party's channel. Golf's host
+// on the server is the authority; this phone predicts its own strokes so they
+// start rolling at once, then settles on whatever the server says.
 
-import { applyShot, other, type MatchState, type Seat } from "../core/match.ts";
+import { applyShot, other, type MatchState } from "../core/match.ts";
 import type { Shot } from "../core/physics.ts";
-import type { Aim, ErrorCode, RoomView, ServerMessage } from "../core/protocol.ts";
-import { $, show } from "../../../shell/dom.ts";
+import type { Aim, GolfClientMessage, GolfServerMessage, GolfState } from "../core/protocol.ts";
+import type { Channel } from "../../../shell/channel.ts";
 import type { Driver, GameScreen } from "./game.ts";
-import { RoomSocket, type SocketStatus } from "./net.ts";
 import { PLAYER_COLORS } from "./render.ts";
-import { sfx } from "./sfx.ts";
-import { deviceToken, save } from "./storage.ts";
 
-/** Where the shell mounts mini golf. */
-export const BASE = "/mini-golf";
-
-/** A room's own path: the invite link. */
-export function roomPath(code: string): string {
-  return `${BASE}/r/${code}`;
-}
-
-export interface OnlineHooks {
-  /** Back to the home screen. */
-  home(): void;
-  /** The room cannot be joined. */
-  refused(code: ErrorCode): void;
-}
-
-export class OnlineSession implements Driver {
-  me: Seat | null = null;
-  readonly code: string;
-  private room: RoomView | null = null;
+export class OnlineGame implements Driver {
+  private channel: Channel<GolfServerMessage, GolfClientMessage>;
+  private screen: GameScreen;
   /** The last match state the server confirmed. */
   private match: MatchState | null = null;
   private shown = "";
   /** The `at` of a stroke this phone sent and has already started rolling. */
   private pending: number | null = null;
-  private status: SocketStatus = "connecting";
-  private socket: RoomSocket;
-  private screen: GameScreen;
-  private hooks: OnlineHooks;
+  private online: boolean;
   private bannerTimer = 0;
+  private closed = false;
 
-  constructor(code: string, name: string, screen: GameScreen, hooks: OnlineHooks) {
-    this.code = code;
+  constructor(channel: Channel<GolfServerMessage, GolfClientMessage>, screen: GameScreen) {
+    this.channel = channel;
     this.screen = screen;
-    this.hooks = hooks;
-    save("room", code);
-    this.socket = new RoomSocket(code, deviceToken(), name, {
-      message: (m) => this.onMessage(m),
-      status: (s) => this.onStatus(s),
-    });
-    this.socket.connect();
+    this.online = channel.connected;
+    channel.listen({ message: (m) => this.onMessage(m), change: () => this.onChange() });
+  }
+
+  get me() {
+    return this.channel.me;
   }
 
   // ---------- Driver ----------
 
   shoot(shot: Shot): void {
     const m = this.match;
-    if (!m || this.me === null || this.pending !== null) return;
+    if (!m || this.pending !== null) return;
     const out = applyShot(m, this.me, shot);
-    if (!out || !this.socket.send({ t: "shot", shot, at: m.strokes })) return;
+    if (!out || !this.channel.send({ t: "shot", shot, at: m.strokes })) return;
     this.pending = m.strokes;
     this.screen.enqueueShot(this.me, shot, m, out.state);
     this.shown = JSON.stringify(out.state);
   }
 
   aim(aim: Aim | null): void {
-    this.socket.send({ t: "aim", aim });
+    this.channel.send({ t: "aim", aim });
   }
 
   next(): void {
-    this.socket.send({ t: "ready" });
+    this.channel.send({ t: "ready" });
   }
 
   again(): void {
-    this.socket.send({ t: "rematch" });
+    this.channel.send({ t: "rematch" });
   }
 
+  /** Back to the menu, on both phones. */
   quit(): void {
-    this.socket.send({ t: "leave" });
-    this.end();
-    this.hooks.home();
+    this.channel.leave();
   }
 
-  /** Starts the round from the lobby (host only). */
-  startRound(): void {
-    this.socket.send({ t: "start" });
-  }
-
-  /** Stops talking to the room without leaving it (the seat stays ours). */
+  /** Stops drawing: the shell closed the game. */
   end(): void {
-    this.socket.close();
+    this.closed = true;
+    clearTimeout(this.bannerTimer);
     this.screen.stop();
-    save("room", null);
   }
 
   // ---------- server ----------
 
-  private onMessage(msg: ServerMessage) {
+  private onMessage(msg: GolfServerMessage) {
+    if (this.closed) return;
     switch (msg.t) {
-      case "welcome":
-        this.me = msg.seat;
-        this.applyRoom(msg.room, true);
-        return;
-      case "room":
-        this.applyRoom(msg.room, false);
+      case "state":
+        this.applyState(msg.golf);
         return;
       case "shot":
-        this.applyShot(msg.seat, msg.shot, msg.room);
+        this.applyShot(msg.seat, msg.shot, msg.golf);
         return;
       case "aim":
         if (msg.seat !== this.me) this.screen.setGhost(msg.seat, msg.aim);
         return;
-      case "error":
-        this.onError(msg.code);
-        return;
     }
   }
 
-  private onError(code: ErrorCode) {
-    if (code === "bad") return;
-    if (code === "replaced") {
-      this.screen.setBanner("This game is open on another screen.");
-      this.socket.close();
-      return;
-    }
-    this.end();
-    this.hooks.refused(code);
+  private onChange() {
+    if (this.closed || !this.screen.active) return;
+    const was = this.online;
+    this.online = this.channel.connected;
+    this.screen.setConnected(this.online);
+    this.updateBanner(!was && this.online);
   }
 
-  private onStatus(status: SocketStatus) {
-    const was = this.status;
-    this.status = status;
-    if (this.screen.active) {
-      this.screen.setConnected(status === "open");
-      this.updateBanner(was !== "open" && status === "open");
-    }
-    this.renderLobby();
-  }
-
-  private applyRoom(room: RoomView, fresh: boolean) {
-    const before = this.room;
-    this.room = room;
-    if (room.status === "ended") {
-      this.onEnded(room);
-      return;
-    }
-    if (room.status === "lobby" || !room.match) {
-      if (this.screen.active) this.screen.stop();
-      show("lobby");
-      this.renderLobby();
-      // A friend just walked in.
-      if (before && !before.players[1] && room.players[1] && this.me === 0) sfx.yourTurn();
-      return;
-    }
-
-    const names = this.names();
+  /** The whole state: on open, after every reconnect, and after a refused stroke. */
+  private applyState(golf: GolfState) {
+    const match = golf.match;
     if (!this.screen.active) {
-      this.match = room.match;
-      this.shown = JSON.stringify(room.match);
+      this.match = match;
+      this.shown = JSON.stringify(match);
       this.pending = null;
-      this.screen.start(this, names, room.match);
+      const [a, b] = this.channel.players;
+      this.screen.start(this, [a.name, b.name], match);
     } else {
-      if (fresh && this.pending !== null && room.match.strokes === this.pending) {
-        // The stroke we sent before the drop never arrived.
-        this.screen.toast("Connection hiccup · take that one again", PLAYER_COLORS[this.me ?? 0]);
+      if (this.pending !== null && match.strokes === this.pending) {
+        // The stroke we sent never counted (a drop, or the state moved on).
+        this.screen.toast("Connection hiccup · take that one again", PLAYER_COLORS[this.me]);
       }
-      if (this.pending !== null && room.match.strokes <= this.pending) this.pending = null;
-      this.match = room.match;
-      this.settle(room.match);
+      if (this.pending !== null && match.strokes <= this.pending) this.pending = null;
+      this.match = match;
+      this.settle(match);
     }
-    this.screen.setConnected(this.status === "open");
-    this.screen.setFlags(room.ready, room.rematch);
+    this.online = this.channel.connected;
+    this.screen.setConnected(this.online);
+    this.screen.setFlags(golf.ready, golf.rematch);
     this.updateBanner(false);
   }
 
-  private applyShot(seat: Seat, shot: Shot, room: RoomView) {
+  private applyShot(seat: 0 | 1, shot: Shot, golf: GolfState) {
     const before = this.match;
-    this.room = room;
-    if (!room.match || !before) return this.applyRoom(room, false);
+    if (!before || !this.screen.active) return this.applyState(golf);
     if (seat === this.me && this.pending === before.strokes) {
       // Our own stroke, already rolling: settle on the server's result (a no-op when the prediction was right).
       this.pending = null;
-      this.match = room.match;
-      this.settle(room.match);
+      this.match = golf.match;
+      this.settle(golf.match);
     } else {
-      this.match = room.match;
-      this.screen.enqueueShot(seat, shot, before, room.match);
-      this.shown = JSON.stringify(room.match);
+      this.match = golf.match;
+      this.screen.enqueueShot(seat, shot, before, golf.match);
+      this.shown = JSON.stringify(golf.match);
     }
-    this.screen.setFlags(room.ready, room.rematch);
+    this.screen.setFlags(golf.ready, golf.rematch);
   }
 
   /** Queues a state only when it differs from what the screen will end up showing. */
@@ -201,34 +141,14 @@ export class OnlineSession implements Driver {
     this.screen.enqueueState(match);
   }
 
-  private onEnded(room: RoomView) {
-    const leaver = room.leftBy;
-    if (leaver === this.me) return;
-    const name = leaver === null ? "Your friend" : (room.players[leaver]?.name ?? "Your friend");
-    this.socket.close();
-    save("room", null);
-    if (this.screen.active) {
-      this.screen.setBanner(null);
-      this.screen.showEnded(`${name} left`, "This round is over.");
-    } else {
-      this.hooks.refused("gone");
-    }
-  }
-
-  private names(): [string, string] {
-    const p = this.room?.players;
-    return [p?.[0]?.name ?? "Player 1", p?.[1]?.name ?? "Player 2"];
-  }
-
   private updateBanner(recovered: boolean) {
     clearTimeout(this.bannerTimer);
-    const room = this.room;
-    if (this.status !== "open") {
+    if (!this.channel.connected) {
       this.screen.setBanner("Connection lost · reconnecting...");
       return;
     }
-    const friend = this.me === null ? null : room?.players[other(this.me)];
-    if (friend && !friend.connected && room?.status === "playing") {
+    const friend = this.channel.players[other(this.me)];
+    if (!friend.connected) {
       this.screen.setBanner(`${friend.name} dropped out · waiting...`);
       return;
     }
@@ -237,50 +157,6 @@ export class OnlineSession implements Driver {
       this.bannerTimer = window.setTimeout(() => this.screen.setBanner(null), 1600);
     } else {
       this.screen.setBanner(null);
-    }
-  }
-
-  private renderLobby() {
-    const room = this.room;
-    if (!room || room.status !== "lobby") return;
-    $("room-code").textContent = room.code;
-    $("invite-url").textContent = `${location.host}${roomPath(room.code)}`;
-    const live = $("lobby-live");
-    live.classList.toggle("off", this.status !== "open");
-    live.lastChild!.textContent = this.status === "open" ? "Room open" : "Reconnecting";
-
-    for (const seat of [0, 1] as const) {
-      const p = room.players[seat];
-      const el = $(`slot-${seat}`);
-      el.className = p ? "slot" : "slot empty";
-      el.style.setProperty("--c", PLAYER_COLORS[seat]);
-      el.replaceChildren();
-      const ball = document.createElement("i");
-      ball.className = "ball";
-      const nm = document.createElement("div");
-      nm.className = "nm";
-      const st = document.createElement("div");
-      st.className = "st";
-      if (p) {
-        nm.textContent = p.name;
-        st.textContent = seat === this.me ? "You" : p.connected ? "Joined" : "Away";
-      } else {
-        nm.textContent = "Friend";
-        st.textContent = "Waiting";
-        st.classList.add("dots");
-      }
-      el.append(ball, nm, st);
-    }
-
-    const startBtn = $<HTMLButtonElement>("start-round");
-    const note = $("lobby-note");
-    if (this.me === 0) {
-      startBtn.hidden = false;
-      startBtn.disabled = !room.players[1]?.connected || this.status !== "open";
-      note.textContent = room.players[1] ? "" : "Send the link. The round starts when you tap start.";
-    } else {
-      startBtn.hidden = true;
-      note.textContent = `Waiting for ${room.players[0]?.name ?? "the host"} to start the round`;
     }
   }
 }

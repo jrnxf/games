@@ -48,7 +48,7 @@ interface Drag {
   aim: Aim | null;
 }
 
-type Overlay = "handoff" | "scorecard" | "menu" | "ended";
+type Overlay = "handoff" | "scorecard" | "menu";
 
 /** Preview length in course units: short for a tap, longer for a full swing. */
 const previewLength = (power: number) => 70 + power * 160;
@@ -211,15 +211,6 @@ export class GameScreen {
     el.hidden = !text;
     el.textContent = text ?? "";
     el.classList.toggle("ok", ok);
-  }
-
-  /** Online: the friend left, so the game is over. */
-  showEnded(title: string, sub: string): void {
-    this.cancelDrag();
-    $("toast").classList.remove("on");
-    this.openOverlay("ended");
-    $("ended-title").textContent = title;
-    $("ended-sub").textContent = sub;
   }
 
   toast(text: string, color: string): void {
@@ -518,12 +509,12 @@ export class GameScreen {
   // ---------- overlays ----------
 
   private openOverlay(which: Overlay) {
-    for (const id of ["handoff", "scorecard", "menu", "ended"] as const) $(id).hidden = id !== which;
+    for (const id of ["handoff", "scorecard", "menu"] as const) $(id).hidden = id !== which;
     this.overlay = which;
   }
 
   private closeOverlay() {
-    for (const id of ["handoff", "scorecard", "menu", "ended"] as const) $(id).hidden = true;
+    for (const id of ["handoff", "scorecard", "menu"] as const) $(id).hidden = true;
     this.overlay = null;
   }
 
@@ -544,7 +535,6 @@ export class GameScreen {
   }
 
   private openMenu() {
-    if (this.overlay === "ended") return;
     this.cancelDrag();
     this.syncSoundLabel();
     $("menu-quit").textContent =
@@ -557,7 +547,7 @@ export class GameScreen {
   }
 
   private openScorecard() {
-    if (!this.match || this.match.phase === "aim" || this.overlay === "ended") return;
+    if (!this.match || this.match.phase === "aim") return;
     this.openOverlay("scorecard");
     this.renderScorecard();
   }
