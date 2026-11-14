@@ -321,6 +321,60 @@ body[data-game="connect-four"] {
   height: 24px;
 }
 
+/* The computer's turn: one calm bar in place of the controls, the same height. */
+.c4-wait {
+  padding: 16px 0 18px;
+}
+
+.c4-wait p {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 18px;
+  border: 2px solid rgba(242, 243, 250, 0.14);
+  background: rgba(242, 243, 250, 0.05);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.c4-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.c4-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--p2);
+  animation: c4-dot 1s ease-in-out infinite;
+}
+
+.c4-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.c4-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes c4-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
 .c4-result {
   display: flex;
   flex-direction: column;
@@ -344,7 +398,8 @@ body[data-game="connect-four"] {
 
 @media (prefers-reduced-motion: reduce) {
   .c4-hover .c4-disc,
-  .c4-disc.win {
+  .c4-disc.win,
+  .c4-dots i {
     animation: none;
   }
 }

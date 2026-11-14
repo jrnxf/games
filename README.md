@@ -8,7 +8,7 @@ Small games for your phone, in one web app you add to your home screen: no app s
 - **Online**: create a room, send the link (or the five-letter code), and take live turns. You see your friend's aim line as they drag, get a "your turn" alert, and drop back in after a lost connection or a closed tab.
 - **Aim**: drag anywhere on the screen and let go. The preview line shows where the ball goes, bounces included.
 
-**Connect Four** (`/connect-four`): two players on one phone. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. The game saves after every move and keeps a running score.
+**Connect Four** (`/connect-four`): solo against the computer (Easy, Medium or Hard), or two players on one phone. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. You go first in the first game, then the first move alternates. The game saves after every move, the computer's turn included, and keeps a running score.
 
 ## Stack
 
@@ -40,12 +40,12 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, rooms, protocol, course bake; Connect Four rules
+pnpm test           # unit tests: golf physics, rules, rooms, protocol, course bake; Connect Four rules and computer
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
 pnpm test:online    # two clients against `wrangler dev`: join, turns, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu      # the start screens, the menu, a Connect Four game to a win, resume, rematch, back to the menu, offline
+pnpm test:menu      # the start screens, the menu, Connect Four solo vs the computer and pass & play, resume, rematch, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.
