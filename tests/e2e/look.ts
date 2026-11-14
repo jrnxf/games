@@ -83,7 +83,9 @@ async function onHole(name: string) {
 try {
   console.log(`look e2e at ${URL} (screenshots in ${SHOTS})`);
   phone.open(URL);
-  phone.click("#go-solo");
+  await phone.pickSession("solo", ["Zoe"]);
+  await waitFor("golf home", () => phone.visible("home"));
+  phone.click("#go-play");
   await waitFor("game screen", () => phone.state().match);
 
   // Volcano: a steep cone; the carpet around it is still green.

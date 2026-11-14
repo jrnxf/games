@@ -1,6 +1,6 @@
 # Games
 
-Small games for your phone, in one web app you add to your home screen: no app store, no accounts. Open it and pick a game from the menu. Each game has its own address, so you can link straight to it.
+Small games for your phone, in one web app you add to your home screen: no app store, no accounts. Open it, say once how you're playing (solo, pass & play on one phone, or online with a friend) and who's playing, then pick a game from the menu. The chip at the top of the menu changes that any time. A game the mode can't run stays on the menu, dimmed, with the reason. Each game has its own address, so you can link straight to it: a first visit asks how you're playing, then goes on to the game.
 
 **Mini Golf** (`/mini-golf`): eighteen holes on a sunny outdoor course, played solo against par, by passing one phone back and forth, or online with a friend through an invite link.
 
@@ -45,7 +45,7 @@ pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 39
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
 pnpm test:online    # two clients against `wrangler dev`: join, turns, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu    # the menu, a Connect Four game to a win, resume, rematch, back to the menu, offline
+pnpm test:menu      # the start screens, the menu, a Connect Four game to a win, resume, rematch, back to the menu, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.
@@ -61,8 +61,8 @@ This creates the `games` Worker with its `ROOMS` Durable Object (SQLite-backed, 
 ## Layout
 
 ```
-src/shell/                 the shell: menu, router, game list, shared styles, storage, DOM helpers
-src/games/<id>/info.ts      a game's menu entry: title, blurb, colours, tile art, and a lazy load()
+src/shell/                 the shell: start screens and session, menu, router, game list, shared styles, storage, DOM helpers
+src/games/<id>/info.ts      a game's menu entry: title, the modes it plays, colours, tile art, and a lazy load()
 src/games/<id>/core/        the game's rules, with no DOM, unit-tested
 src/games/<id>/client/      the game's screens (screens.html), styles and code (main.ts)
 src/sw.js                   service worker template (the build fills in the file list)
@@ -75,7 +75,8 @@ tests/e2e/                  browser and online end-to-end runs
 ## Adding a game
 
 1. Make `src/games/<id>/` with `core/`, `client/` and `info.ts`. Copy Connect Four: it is the smallest.
-2. In `client/main.ts`, import the styles and `screens.html?raw`, insert the screens into the body, and export `open(rest)` and `close()`. The shell calls `open` with the rest of the path after `/<id>`, and `close` when the player leaves.
+2. In `client/main.ts`, import the styles and `screens.html?raw`, insert the screens into the body, and export `open(rest, session)` and `close()`. The shell calls `open` with the rest of the path after `/<id>` and the `Session` from `src/shell/session.ts` (the mode, the names and, in solo, the computer's level), and `close` when the player leaves. Go straight into the session's mode: the game does not ask for the mode or names again.
 3. Scope the game's colours under `body[data-game="<id>"]`. Give each screen `class="screen" data-screen`, and a back button with `data-menu` to return to the menu.
 4. Save with `store("<id>.")` from `src/shell/storage.ts`, so games never share keys.
-5. Add the `info` to `GAMES` in `src/shell/games.ts`. The menu tile, the route and offline caching follow from that.
+5. In `info.ts`, set `modes`: `solo` is `"alone"`, `"computer"` or `false`, and `pass-and-play` and `online` are true or false. The tile's line and the dimmed state come from that.
+6. Add the `info` to `GAMES` in `src/shell/games.ts`. The menu tile, the route and offline caching follow from that.

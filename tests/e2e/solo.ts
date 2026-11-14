@@ -22,9 +22,14 @@ const phone = new Browser("games-e2e-solo");
 try {
   console.log(`solo e2e at ${URL} (screenshots in ${SHOTS})`);
   phone.open(URL);
+  check(phone.visible("start-mode"), "a first visit asks how you're playing");
+  await phone.pickSession("solo", ["Zoe"]);
+  await waitFor("golf home", () => phone.visible("home"));
+  check(phone.eval<string>("() => location.pathname") === "/mini-golf", "the picker continues to the game");
+  check(phone.text("#home-tagline") === "Zoe · 18 holes · against par", "home names the solo player");
   check(!phone.visible("solo-best"), "no best round before the first one");
   phone.screenshot("solo-home");
-  phone.click("#go-solo");
+  phone.click("#go-play");
   await waitFor("game screen", () => phone.state().match);
   check(!phone.visible("hud-1"), "one player on the scoreboard");
   phone.screenshot("solo-game");

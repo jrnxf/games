@@ -7,6 +7,7 @@ import "./styles.css";
 import screens from "./screens.html?raw";
 
 import { $, show } from "../../../shell/dom.ts";
+import type { Session } from "../../../shell/session.ts";
 import { store } from "../../../shell/storage.ts";
 import {
   COLS,
@@ -23,7 +24,7 @@ import {
 
 document.body.insertAdjacentHTML("beforeend", screens);
 
-const { load, save, loadJson } = store("connect-four.");
+const { save, loadJson } = store("connect-four.");
 const DEFAULT_NAMES = ["Zoe", "Kai"] as const;
 const BOARD_PAD = 10;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -198,33 +199,32 @@ function rematch() {
   persist();
 }
 
-function goHome() {
+/** The saved game, if it is between the session's two players. */
+function ourGame() {
   const saved = savedGame();
+  return saved && saved.names[0] === names[0] && saved.names[1] === names[1] ? saved : null;
+}
+
+function goHome() {
+  const saved = ourGame();
   $("c4-resume").hidden = !saved || isOver(saved.board) || saved.moves.length === 0;
-  $<HTMLInputElement>("c4-name-0").value = saved?.names[0] ?? load("names")?.split("\n")[0] ?? "";
-  $<HTMLInputElement>("c4-name-1").value = saved?.names[1] ?? load("names")?.split("\n")[1] ?? "";
+  $("c4-name-0").textContent = names[0];
+  $("c4-name-1").textContent = names[1];
   show("c4-home");
 }
 
 $("c4-form").addEventListener("submit", (e) => {
   e.preventDefault();
-  const a = cleanName($<HTMLInputElement>("c4-name-0").value, DEFAULT_NAMES[0]);
-  let b = cleanName($<HTMLInputElement>("c4-name-1").value, DEFAULT_NAMES[1]);
-  if (b.toLowerCase() === a.toLowerCase()) b = `${b} 2`;
   // Same two players keep their running score; new names start from zero.
-  const saved = savedGame();
-  const same = saved && saved.names[0] === a && saved.names[1] === b;
-  wins = same ? saved.wins : [0, 0];
-  names = [a, b];
-  save("names", `${a}\n${b}`);
-  startGame(newBoard(same ? ((1 - saved.starter) as Seat) : 0));
+  const saved = ourGame();
+  wins = saved ? saved.wins : [0, 0];
+  startGame(newBoard(saved ? ((1 - saved.starter) as Seat) : 0));
   persist();
 });
 
 $("c4-resume").addEventListener("click", () => {
-  const saved = savedGame();
+  const saved = ourGame();
   if (!saved) return goHome();
-  names = saved.names;
   wins = saved.wins;
   startGame(saved.board);
 });
@@ -265,7 +265,11 @@ addEventListener("keydown", (e) => {
 
 // ---------- shell hooks ----------
 
-export function open(_rest: string): void {
+export function open(_rest: string, session: Session): void {
+  // Pass & play only for now: the shell opens no other mode here.
+  if (session.mode === "pass-and-play") {
+    names = [cleanName(session.names[0], DEFAULT_NAMES[0]), cleanName(session.names[1], DEFAULT_NAMES[1])];
+  }
   goHome();
 }
 

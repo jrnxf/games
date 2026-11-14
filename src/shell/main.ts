@@ -1,13 +1,16 @@
-// The app shell: the game menu and a router that hands each /<game>/... path
-// to that game's code, loaded the first time it opens.
+// The app shell: the session (how you're playing), the game menu, and a router
+// that hands each /<game>/... path to that game's code, loaded the first time
+// it opens.
 
 import "@fontsource-variable/outfit/wght.css";
 import "./base.css";
 import "./menu.css";
 
 import { $, show } from "./dom.ts";
-import { GAMES, type GameInfo, type GameModule } from "./games.ts";
+import { GAMES, blurb, unsupported, type GameInfo, type GameModule } from "./games.ts";
 import { go, onRoute } from "./nav.ts";
+import { describe, loadSession } from "./session.ts";
+import { pickSession } from "./start.ts";
 
 const TITLE = "Games";
 const THEME = "#181a28";
@@ -43,6 +46,17 @@ function leaveGame() {
 function showMenu() {
   leaveGame();
   theme(null);
+  const session = loadSession();
+  if (!session) return pickSession(null, showMenu, null);
+  $("menu-chip-text").textContent = describe(session);
+  for (const a of tiles.querySelectorAll<HTMLAnchorElement>("a.tile")) {
+    const info = GAMES.find((g) => g.id === a.dataset.id)!;
+    const off = unsupported(info, session.mode) !== null;
+    a.classList.toggle("off", off);
+    if (off) a.setAttribute("aria-disabled", "true");
+    else a.removeAttribute("aria-disabled");
+    a.querySelector("small")!.textContent = blurb(info, session.mode);
+  }
   show("games");
 }
 
@@ -54,6 +68,19 @@ async function route() {
   if (!info) {
     if (path !== "/") history.replaceState(null, "", "/");
     return showMenu();
+  }
+  const session = loadSession();
+  if (!session) {
+    // A link straight to a game: ask how they're playing, then carry on to it.
+    leaveGame();
+    theme(null);
+    return pickSession(null, () => void route(), null);
+  }
+  const why = unsupported(info, session.mode);
+  if (why) {
+    history.replaceState(null, "", "/");
+    showMenu();
+    return toast(`${info.title}: ${why.toLowerCase()}`);
   }
   if (current && current.info !== info) leaveGame();
   theme(info);
@@ -70,7 +97,7 @@ async function route() {
   }
   if (id !== routeId) return;
   current = { info, mod };
-  mod.open(rest.replace(/\/$/, ""));
+  mod.open(rest.replace(/\/$/, ""), session);
 }
 
 function toast(text: string) {
@@ -92,16 +119,21 @@ for (const g of GAMES) {
   a.style.setProperty("--from", g.tile[0]);
   a.style.setProperty("--to", g.tile[1]);
   a.innerHTML = `<svg viewBox="0 0 100 70" aria-hidden="true">${g.art}</svg>
-    <b>${g.title}</b><small>${g.blurb}</small>`;
+    <b>${g.title}</b><small></small>`;
   tiles.append(a);
 }
 
 tiles.addEventListener("click", (e) => {
   const a = (e.target as Element).closest<HTMLAnchorElement>("a.tile");
-  if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  if (!a) return;
+  // A game that can't run in this mode stays put; its tile says why.
+  if (a.classList.contains("off")) return e.preventDefault();
+  if (e.metaKey || e.ctrlKey || e.shiftKey) return;
   e.preventDefault();
   go(a.pathname);
 });
+
+$("menu-chip").addEventListener("click", () => pickSession(loadSession(), showMenu, () => show("games")));
 
 // Any game's "all games" button.
 document.addEventListener("click", (e) => {

@@ -99,6 +99,19 @@ export class Browser {
     );
   }
 
+  /**
+   * Answers the start screens the way a player would: tap a mode, type the
+   * names, tap Continue. The mode picker must be on screen.
+   */
+  async pickSession(mode: "solo" | "pass-and-play" | "online", names: string[]): Promise<void> {
+    await waitFor("mode picker", () => this.visible("start-mode"));
+    this.click(`[data-mode="${mode}"]`);
+    await waitFor("names screen", () => this.visible("start-names"));
+    names.forEach((name, i) => this.fill(`#start-name-${i}`, name));
+    this.click("#start-go");
+    await waitFor("start screens to close", () => !this.visible("start-names"));
+  }
+
   screenshot(name: string): string {
     const path = join(SHOTS, `${name}.png`);
     this.axi(["screenshot", path]);

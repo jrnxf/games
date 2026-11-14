@@ -3,7 +3,7 @@ import type { GameInfo } from "../../shell/games.ts";
 export default {
   id: "mini-golf",
   title: "Mini Golf",
-  blurb: "18 holes · 1-2 players",
+  modes: { solo: "alone", "pass-and-play": true, online: true },
   themeColor: "#1d281a",
   tile: ["#4aa05a", "#2f6e3f"],
   art: `<path d="M24 58 L58 30" stroke="#f4f6ea" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 6" fill="none"/>

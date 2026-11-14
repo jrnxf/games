@@ -7,6 +7,7 @@ import screens from "./screens.html?raw";
 import { formatVsPar } from "../core/solo.ts";
 import { cleanName, isCode, normalizeCode, type ErrorCode } from "../core/protocol.ts";
 import { $, show } from "../../../shell/dom.ts";
+import type { Session } from "../../../shell/session.ts";
 import { GameScreen } from "./game.ts";
 import { LocalGame, savedLocalGame } from "./local.ts";
 import { BASE, OnlineSession, roomPath } from "./online.ts";
@@ -17,26 +18,48 @@ import { load, save } from "./storage.ts";
 document.body.insertAdjacentHTML("beforeend", screens);
 
 const screen = new GameScreen();
-let session: OnlineSession | null = null;
+/** How the shell says we're playing. Set on every open(). */
+let play: Session = { mode: "solo", names: ["You"], difficulty: "medium" };
+let room: OnlineSession | null = null;
 
 // ---------- navigation ----------
 
+/** The saved pass & play game, if it is these two players'. */
+function resumable() {
+  const saved = savedLocalGame();
+  return saved && play.mode === "pass-and-play" && saved.names.join("\n") === play.names.join("\n")
+    ? saved
+    : null;
+}
+
+/** The start of the current mode: the tee-off screen, or create-or-join online. */
 function goHome(replace = true) {
-  session?.end();
-  session = null;
+  room?.end();
+  room = null;
   if (screen.active) screen.stop();
   if (location.pathname !== BASE) history[replace ? "replaceState" : "pushState"](null, "", BASE);
-  $("resume-local").hidden = !savedLocalGame();
-  const best = loadBest();
+  if (play.mode === "online") {
+    $("online-lead").textContent =
+      `Playing as ${play.names[0]}. Make a room and send the link, or type a friend's code.`;
+    setNote("");
+    return show("online-setup");
+  }
+  $("home-tagline").textContent =
+    play.mode === "solo"
+      ? `${play.names[0]} · 18 holes · against par`
+      : `${play.names.join(" vs ")} · 18 holes`;
+  $("resume-local").hidden = !resumable();
+  const best = play.mode === "solo" ? loadBest() : null;
   $("solo-best").hidden = !best;
   if (best) $("solo-best").textContent = `Best solo round ${best.strokes} (${formatVsPar(best.vsPar)})`;
   show("home");
 }
 
 /** Shows `rest`, the path after /mini-golf: "" for home or /r/CODE for a room. */
-export function open(rest: string): void {
+export function open(rest: string, session: Session): void {
+  play = session;
   // The back button during a pass & play or solo game stays in the game.
-  if (rest === "" && screen.active && session === null) return;
+  if (rest === "" && screen.active && room === null) return;
   const m = /^\/r\/([^/]+)$/.exec(rest);
   const code = m ? normalizeCode(decodeURIComponent(m[1]!)) : "";
   if (m && isCode(code)) void openRoom(code);
@@ -44,8 +67,8 @@ export function open(rest: string): void {
 }
 
 export function close(): void {
-  session?.end();
-  session = null;
+  room?.end();
+  room = null;
   if (screen.active) screen.stop();
 }
 
@@ -68,35 +91,14 @@ $("sound-toggle").addEventListener("click", () => {
   syncSound();
 });
 
-$("go-local").addEventListener("click", () => {
-  const names = load("names")?.split("\n") ?? [];
-  $<HTMLInputElement>("local-name-0").value = names[0] ?? "";
-  $<HTMLInputElement>("local-name-1").value = names[1] ?? "";
-  show("local-setup");
+$("go-play").addEventListener("click", () => {
+  if (play.mode === "solo") new SoloGame(screen, play.names[0], () => goHome());
+  else if (play.mode === "pass-and-play") new LocalGame(screen, [...play.names], () => goHome());
 });
-
-$("go-solo").addEventListener("click", () => new SoloGame(screen, "You", () => goHome()));
 
 $("resume-local").addEventListener("click", () => {
-  const saved = savedLocalGame();
+  const saved = resumable();
   if (saved) new LocalGame(screen, saved.names, () => goHome(), saved.match);
-});
-
-$("go-online").addEventListener("click", () => {
-  $<HTMLInputElement>("online-name").value = load("name") ?? "";
-  setNote("");
-  show("online-setup");
-});
-
-// ---------- pass and play ----------
-
-$("local-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const a = cleanName($<HTMLInputElement>("local-name-0").value, "Zoe");
-  let b = cleanName($<HTMLInputElement>("local-name-1").value, "Kai");
-  if (b.toLowerCase() === a.toLowerCase()) b = `${b} 2`;
-  save("names", `${a}\n${b}`);
-  new LocalGame(screen, [a, b], () => goHome());
 });
 
 // ---------- online ----------
@@ -107,8 +109,9 @@ function setNote(text: string, error = false) {
   note.classList.toggle("error", error);
 }
 
-function onlineName(id: string): string {
-  const name = cleanName($<HTMLInputElement>(id).value, "");
+/** The name to play under: the session's, or the one typed on an invite. */
+function onlineName(typed?: string): string {
+  const name = cleanName(typed ?? play.names[0], "");
   if (name) save("name", name);
   return name;
 }
@@ -124,7 +127,7 @@ $("create-room").addEventListener("click", async () => {
     const { code } = (await res.json()) as { code: string };
     history.pushState(null, "", roomPath(code));
     setNote("");
-    connect(code, onlineName("online-name"));
+    connect(code, onlineName());
   } catch {
     setNote("Couldn't reach the server. Check your connection and try again.", true);
   } finally {
@@ -141,20 +144,19 @@ $("code-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const code = normalizeCode($<HTMLInputElement>("code-input").value);
   if (!isCode(code)) return setNote("Room codes are 5 letters and numbers.", true);
-  onlineName("online-name");
   history.pushState(null, "", roomPath(code));
   void openRoom(code);
 });
 
 function connect(code: string, name: string) {
-  session?.end();
-  session = new OnlineSession(code, name, screen, {
+  room?.end();
+  room = new OnlineSession(code, name, screen, {
     home: () => {
-      session = null;
+      room = null;
       goHome();
     },
     refused: (reason) => {
-      session = null;
+      room = null;
       showRefused(code, reason);
     },
   });
@@ -165,14 +167,14 @@ function connect(code: string, name: string) {
 
 /** Landing on an invite link: rejoin our own room, or ask for a name first. */
 async function openRoom(code: string) {
-  if (session?.code === code) return;
+  if (room?.code === code) return;
   if (load("room") === code) return connect(code, load("name") ?? "");
   show("join");
   $("join-code").textContent = `Room ${code}`;
   $("join-title").textContent = "You're invited";
   $("join-lead").textContent = "Two players, 18 holes, about thirty minutes.";
   $("join-name-field").hidden = false;
-  $<HTMLInputElement>("join-name").value = load("name") ?? "";
+  $<HTMLInputElement>("join-name").value = play.names[0];
   $("join-go").hidden = false;
   $("join-go").textContent = "Join game";
   $("join-home").textContent = "Not now";
@@ -194,7 +196,7 @@ async function openRoom(code: string) {
 $("join-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const code = normalizeCode(location.pathname.slice(`${BASE}/r/`.length));
-  if (isCode(code)) connect(code, onlineName("join-name"));
+  if (isCode(code)) connect(code, onlineName($<HTMLInputElement>("join-name").value));
 });
 
 function showRefused(code: string, reason: ErrorCode) {
@@ -215,8 +217,8 @@ function showRefused(code: string, reason: ErrorCode) {
 
 // ---------- lobby ----------
 
-$("lobby-leave").addEventListener("click", () => session?.quit());
-$("start-round").addEventListener("click", () => session?.startRound());
+$("lobby-leave").addEventListener("click", () => room?.quit());
+$("start-round").addEventListener("click", () => room?.startRound());
 
 $("copy-link").addEventListener("click", async () => {
   const url = `${location.origin}${location.pathname}`;
