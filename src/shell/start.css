@@ -1,0 +1,151 @@
+/* The start screens: the mode picker and the names form. */
+
+#start-mode .pad {
+  overflow-y: auto;
+}
+
+.start .headline {
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+}
+
+.start .label + .headline {
+  margin-top: -6px;
+}
+
+.start .lead {
+  margin-bottom: 8px;
+}
+
+/* ---------- mode cards ---------- */
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 22px;
+  border: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  text-align: left;
+  transition:
+    transform 0.12s ease-out,
+    border-color 0.2s;
+}
+
+.mode:active {
+  transform: scale(0.97);
+}
+
+.mode:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.mode.sel {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.mode i {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, var(--from), var(--to));
+}
+
+.mode i svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.mode span {
+  flex: 1;
+  min-width: 0;
+}
+
+.mode b {
+  display: block;
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.mode small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mode .tick {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+  place-items: center;
+}
+
+.mode.sel .tick {
+  display: grid;
+}
+
+.tick svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- names ---------- */
+
+#start-difficulty {
+  gap: 8px;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.seg button {
+  height: 50px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.seg button[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.seg button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}

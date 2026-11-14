@@ -19,15 +19,102 @@
     <title>Games</title>
   </head>
   <body>
+    <!-- How you're playing: picked once, before the menu. -->
+    <section class="screen" id="start-mode" data-screen>
+      <div class="bar">
+        <button class="back" id="start-mode-back" aria-label="Back to the menu" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+      </div>
+      <div class="pad stack start">
+        <p class="label">Games</p>
+        <h1 class="headline">How are you playing?</h1>
+        <p class="lead">Pick one. You can change it any time.</p>
+        <button class="mode" data-mode="solo">
+          <i style="--from: #4aa05a; --to: #2f6e3f">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c1-5 4-7 8-7s7 2 8 7" />
+            </svg>
+          </i>
+          <span><b>Solo</b><small>Just you, or vs the computer</small></span>
+          <em class="tick" aria-hidden="true"
+            ><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" /></svg
+          ></em>
+        </button>
+        <button class="mode" data-mode="pass-and-play">
+          <i style="--from: #ff5c4d; --to: #c93a2d">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="8" cy="9" r="3.2" />
+              <circle cx="16.5" cy="9" r="3.2" />
+              <path d="M2 20c.7-4 3-5.5 6-5.5s5.3 1.5 6 5.5M14 14.7c3 0 5.5 1.3 6.5 5.3" />
+            </svg>
+          </i>
+          <span><b>Pass &amp; play</b><small>Two players, one phone</small></span>
+          <em class="tick" aria-hidden="true"
+            ><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" /></svg
+          ></em>
+        </button>
+        <button class="mode" data-mode="online">
+          <i style="--from: #3b80f0; --to: #2257b8">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" />
+            </svg>
+          </i>
+          <span><b>Online with a friend</b><small>Share a code, play apart</small></span>
+          <em class="tick" aria-hidden="true"
+            ><svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" /></svg
+          ></em>
+        </button>
+      </div>
+    </section>
+
+    <!-- Who's playing, for the mode just picked. -->
+    <section class="screen" id="start-names" data-screen>
+      <div class="bar">
+        <button class="back" id="start-names-back" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <span class="bar-title" id="start-mode-title"></span>
+      </div>
+      <form class="pad stack start" id="start-form">
+        <h1 class="headline" id="start-title"></h1>
+        <p class="lead" id="start-lead"></p>
+        <label class="field" style="--c: var(--p1)">
+          <span id="start-label-0"></span>
+          <input id="start-name-0" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name" />
+        </label>
+        <label class="field" style="--c: var(--p2)" id="start-field-1">
+          <span>Player 2</span>
+          <input id="start-name-1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name" />
+        </label>
+        <div class="field" id="start-difficulty">
+          <p class="label" id="start-difficulty-label">Computer</p>
+          <div class="seg" role="radiogroup" aria-labelledby="start-difficulty-label">
+            <button type="button" role="radio" data-difficulty="easy">Easy</button>
+            <button type="button" role="radio" data-difficulty="medium">Medium</button>
+            <button type="button" role="radio" data-difficulty="hard">Hard</button>
+          </div>
+        </div>
+        <div class="grow"></div>
+        <button class="btn primary" type="submit" id="start-go">Continue</button>
+      </form>
+    </section>
+
     <!-- The game menu. Each game adds its own screens when it first opens. -->
     <section class="screen" id="games" data-screen>
+      <button class="chip" id="menu-chip" aria-label="Change how you're playing">
+        <span id="menu-chip-text"></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
       <header class="brand">
         <div class="brand-mark" aria-hidden="true">
           <i style="background: #ff5c4d"></i><i style="background: #ffd23f"></i
           ><i style="background: #3b8cff"></i><i style="background: #4ac46e"></i>
         </div>
         <h1>Games</h1>
-        <p>Pick a game. Play solo, pass the phone or play a friend.</p>
+        <p>Pick a game.</p>
       </header>
       <nav class="tiles" id="tiles" aria-label="Games"></nav>
       <p class="soon">More games coming soon</p>

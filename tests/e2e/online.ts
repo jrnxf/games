@@ -208,9 +208,14 @@ async function uiTest() {
   const a = new Browser("games-e2e-online-a");
   const b = new Browser("games-e2e-online-b");
   try {
-    a.open(`${ORIGIN}/mini-golf`);
-    a.click("#go-online");
-    a.fill("#online-name", "Ana");
+    a.open(`${ORIGIN}/`);
+    await a.pickSession("online", ["Ana"]);
+    await waitFor("menu", () => a.visible("games"));
+    check(a.text("#menu-chip-text") === "Online · Ana", "the menu chip shows the online session");
+    a.click('#tiles a[href="/mini-golf"]');
+    await waitFor("create or join", () => a.visible("online-setup"));
+    check(a.text("#online-lead").startsWith("Playing as Ana."), "golf goes straight to create or join");
+    a.screenshot("online-setup");
     a.click("#create-room");
     const code = await waitFor("room code", () => {
       const c = a.text("#room-code");
@@ -219,10 +224,15 @@ async function uiTest() {
     check(a.text("#invite-url").endsWith(`/mini-golf/r/${code}`), "lobby shows the invite link");
     a.screenshot("online-lobby-waiting");
 
+    // The friend has never been here: the invite asks how they play first.
     b.open(`${ORIGIN}/mini-golf/r/${code}`);
+    await b.pickSession("online", ["Kai"]);
     await waitFor("join screen", () => b.text("#join-title") === "Ana invited you");
+    check(
+      b.eval<string>(`() => document.getElementById("join-name").value`) === "Kai",
+      "the invite has the name",
+    );
     b.screenshot("online-join");
-    b.fill("#join-name", "Kai");
     b.click("#join-go");
     await waitFor("guest in lobby", () => b.visible("lobby") && b.text("#lobby-note").includes("Ana"));
     await waitFor("host sees guest", () => a.text("#slot-1").includes("Kai"));
@@ -284,7 +294,7 @@ async function uiTest() {
     await waitFor("friend idle", () => !b.state().busy);
     b.click("#menu-btn");
     b.click("#menu-quit");
-    await waitFor("friend home", () => b.visible("home"));
+    await waitFor("friend back at create or join", () => b.visible("online-setup"));
     await waitFor("host told", () => a.visible("ended"));
     check(a.text("#ended-title") === "Kai left", "host sees that the friend left");
     a.screenshot("online-friend-left");

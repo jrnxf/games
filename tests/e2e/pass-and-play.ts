@@ -22,11 +22,12 @@ const phone = new Browser("games-e2e-pass-and-play");
 try {
   console.log(`pass-and-play e2e at ${URL} (screenshots in ${SHOTS})`);
   phone.open(URL);
+  await phone.pickSession("pass-and-play", ["Zoe", "Kai"]);
+  await waitFor("golf home", () => phone.visible("home"));
+  check(phone.text("#home-tagline") === "Zoe vs Kai · 18 holes", "home names both players");
+  check(!phone.visible("resume-local"), "nothing to resume yet");
   phone.screenshot("pp-home");
-  phone.click("#go-local");
-  phone.fill("#local-name-0", "Zoe");
-  phone.fill("#local-name-1", "Kai");
-  phone.click("#local-form button[type=submit]");
+  phone.click("#go-play");
   await waitFor("game screen", () => phone.state().match);
   check(phone.text("#turn-who") === "Zoe", "Zoe tees off first");
 

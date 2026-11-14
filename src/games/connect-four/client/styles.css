@@ -348,3 +348,10 @@ body[data-game="connect-four"] {
     animation: none;
   }
 }
+
+/* ---------- home ---------- */
+
+/* The session's two players, shown as the cards from the board. */
+#c4-home .c4-pl {
+  flex: none;
+}

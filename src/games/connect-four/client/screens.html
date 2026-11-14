@@ -10,14 +10,14 @@
   </div>
   <form class="pad stack" id="c4-form">
     <p class="lead">One phone, two players. Take turns dropping chips. Four in a row wins.</p>
-    <label class="field" style="--c: var(--p1)">
-      <span>Red</span>
-      <input id="c4-name-0" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Zoe" />
-    </label>
-    <label class="field" style="--c: var(--p2)">
-      <span>Yellow</span>
-      <input id="c4-name-1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Kai" />
-    </label>
+    <div class="c4-pl on" style="--c: var(--p1); --cd: var(--p1-dark)">
+      <i class="c4-mini"></i>
+      <div><b class="c4-name" id="c4-name-0"></b><small class="c4-sub">Red · goes first</small></div>
+    </div>
+    <div class="c4-pl on" style="--c: var(--p2); --cd: var(--p2-dark)">
+      <i class="c4-mini"></i>
+      <div><b class="c4-name" id="c4-name-1"></b><small class="c4-sub">Yellow</small></div>
+    </div>
     <div class="grow"></div>
     <button class="btn primary" type="submit" id="c4-start">Start</button>
     <button class="btn outline" type="button" id="c4-resume" hidden>Resume your game</button>
