@@ -257,13 +257,16 @@ function draw() {
 async function play() {
   if (busy || thinking || !canDrop(board, col)) return;
   const ch = channel;
+  const sent = latest;
   if (ch) {
     // Online, only on this phone's turn, and only once the host can hear it.
     if (waiting() || !ch.send({ t: "drop", col, at: board.moves.length })) return;
     pending = board.moves.length;
   }
   if (!(await fall(col)) || ch !== channel) return;
-  if (ch) return void settle();
+  // Online, the chip stays where it landed until the host answers. If it
+  // already has, catch up with that answer now.
+  if (ch) return void (latest !== sent ? settle() : draw());
   if (board.winner !== null) wins[board.winner] += 1;
   persist();
   takeTurn();

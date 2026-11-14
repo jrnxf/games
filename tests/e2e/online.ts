@@ -279,6 +279,36 @@ const four = (p: Browser) => p.eval<FourState>("() => window.__connectFour.state
 const fourToast = (p: Browser) =>
   p.eval<boolean>(`() => document.getElementById("c4-toast").classList.contains("on")`);
 
+/**
+ * Makes `p`'s link slow: everything it sends leaves `ms` late, so the host's
+ * answer to a drop lands well after the chip. Also counts the chips that fall
+ * on its board and records its toasts, for `slowSeen`. Null puts it back.
+ */
+function slowLink(p: Browser, ms: number | null) {
+  p.run(`await page.eval(() => {
+    const w = window;
+    w.__send ??= WebSocket.prototype.send;
+    const send = w.__send;
+    const ms = ${JSON.stringify(ms)};
+    WebSocket.prototype.send = ms === null ? send : function (data) { setTimeout(() => send.call(this, data), ms); };
+    w.__falls = 0;
+    w.__toasts = [];
+    w.__watch?.disconnect();
+    w.__watch = new MutationObserver((records) => {
+      for (const r of records) {
+        if (r.target.id === "c4-toast") w.__toasts.push(r.target.textContent);
+        for (const n of r.addedNodes) if (n.classList?.contains("c4-falling")) w.__falls++;
+      }
+    });
+    w.__watch.observe(document.getElementById("c4-board"), { childList: true });
+    w.__watch.observe(document.getElementById("c4-toast"), { childList: true, characterData: true, subtree: true });
+  });`);
+}
+
+/** What `slowLink` saw on `p` since it was set. */
+const slowSeen = (p: Browser) =>
+  p.eval<{ falls: number; toasts: string[] }>("() => ({ falls: window.__falls, toasts: window.__toasts })");
+
 /** Aims with the arrows and taps Drop on `p`, then waits for the chip to land on both phones. */
 async function fourDrop(p: Browser, other: Browser, col: number) {
   await waitFor("on turn", () => !four(p).locked);
@@ -359,7 +389,18 @@ async function connectFour(a: Browser, b: Browser, atMenu: (p: Browser) => boole
     !four(a).locked && four(b).locked && four(b).wins.join() === "0,1",
     "the rematch swaps who goes first",
   );
+
+  // On a slow link the host answers after the chip has landed. The chip stays
+  // put: it falls once, with no "Connection hiccup" toast.
+  slowLink(a, 1500);
   await fourDrop(a, b, 3);
+  await new Promise((r) => setTimeout(r, 2500));
+  const seen = slowSeen(a);
+  slowLink(a, null);
+  check(
+    seen.falls === 1 && !seen.toasts.some((t) => t.includes("hiccup")) && four(a).moves.join() === "3",
+    `on a slow link the chip falls once and stays (falls ${seen.falls}, toasts ${JSON.stringify(seen.toasts)})`,
+  );
 
   // The connection drops. Ana can still leave the game: her phone goes at once,
   // and Kai's follows once the server is back.
