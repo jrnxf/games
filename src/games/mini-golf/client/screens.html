@@ -27,84 +27,6 @@
   <button class="sound-toggle" id="sound-toggle" aria-pressed="true">Sound on</button>
 </section>
 
-<!-- Online: create or join -->
-<section class="screen" id="online-setup" data-screen>
-  <div class="bar">
-    <button class="back" data-menu aria-label="All games">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-    </button>
-    <span class="bar-title">Play online</span>
-  </div>
-  <div class="pad stack">
-    <p class="lead" id="online-lead"></p>
-    <button class="btn primary" id="create-room">Create a room</button>
-    <div class="divider"><span>or join a friend</span></div>
-    <form class="code-row" id="code-form">
-      <input
-        id="code-input"
-        class="code-input"
-        maxlength="7"
-        autocomplete="off"
-        autocapitalize="characters"
-        spellcheck="false"
-        placeholder="CODE"
-        aria-label="Room code"
-      />
-      <button class="btn outline" type="submit">Join</button>
-    </form>
-    <p class="note" id="online-note" role="status"></p>
-  </div>
-</section>
-
-<!-- Lobby -->
-<section class="screen" id="lobby" data-screen>
-  <div class="bar">
-    <button class="back" id="lobby-leave" aria-label="Leave room">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-    </button>
-    <span class="live" id="lobby-live"><i></i>Room open</span>
-  </div>
-  <div class="pad stack">
-    <div class="label">Room code</div>
-    <div class="room-code" id="room-code">-----</div>
-    <div class="invite">
-      <div class="invite-url" id="invite-url"></div>
-      <div class="invite-actions">
-        <button id="copy-link">Copy link</button>
-        <button id="share-link">Share</button>
-      </div>
-    </div>
-    <div class="slots">
-      <div class="slot" id="slot-0"></div>
-      <div class="slot" id="slot-1"></div>
-    </div>
-    <div class="grow"></div>
-    <button class="btn primary" id="start-round" disabled>Start round</button>
-    <p class="note center" id="lobby-note"></p>
-  </div>
-</section>
-
-<!-- Invite link landing -->
-<section class="screen" id="join" data-screen>
-  <div class="bar">
-    <button class="back" data-home aria-label="Back">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-    </button>
-  </div>
-  <form class="pad stack" id="join-form">
-    <div class="label" id="join-code"></div>
-    <h2 class="headline" id="join-title">You're invited</h2>
-    <p class="lead" id="join-lead">Two players, 18 holes. Takes about thirty minutes.</p>
-    <label class="field" style="--c: var(--p2)" id="join-name-field">
-      <span>Your name</span>
-      <input id="join-name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Kai" />
-    </label>
-    <div class="grow"></div>
-    <button class="btn primary" type="submit" id="join-go">Join game</button>
-    <button class="btn ghost" type="button" data-home id="join-home">Not now</button>
-  </form>
-</section>
-
 <!-- Game -->
 <section class="screen" id="game" data-screen>
   <header class="hud">
@@ -169,14 +91,6 @@
     <button class="btn primary" id="menu-resume">Resume</button>
     <button class="btn outline" id="menu-sound">Sound on</button>
     <button class="btn ghost danger" id="menu-quit">Leave game</button>
-  </div>
-</div>
-
-<div class="modal" id="ended" hidden>
-  <div class="panel">
-    <h2 id="ended-title">Game over</h2>
-    <p class="sub" id="ended-sub"></p>
-    <button class="btn primary" data-home>Home</button>
   </div>
 </div>
 

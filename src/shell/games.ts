@@ -3,15 +3,17 @@
 
 import connectFour from "../games/connect-four/info.ts";
 import miniGolf from "../games/mini-golf/info.ts";
-import type { Mode, Session } from "./session.ts";
+import type { GameSession, Mode } from "./session.ts";
 
 /** What a game's code exports. The shell loads it the first time the game opens. */
 export interface GameModule {
   /**
-   * Shows the game at `rest`, the path after its own prefix ("" or "/r/ABCDE"),
-   * set up for `session`. The shell only opens a game in a mode it supports.
+   * Shows the game at `rest`, the path after its own prefix (usually ""), set
+   * up for `session`. The shell only opens a game in a mode it supports.
+   * Online, both phones are seated and `session.channel` reaches the game's
+   * host on the server (see src/party/host.ts and channel.ts).
    */
-  open(rest: string, session: Session): void;
+  open(rest: string, session: GameSession): void;
   /** Stops anything running: the player went back to the menu. */
   close(): void;
 }
@@ -21,6 +23,7 @@ export interface GameModes {
   /** One player: on their own (against par, say), against the computer, or not at all. */
   solo: "alone" | "computer" | false;
   "pass-and-play": boolean;
+  /** True needs a host for the game's id in worker/hosts.ts. */
   online: boolean;
 }
 

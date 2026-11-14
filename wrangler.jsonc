@@ -10,8 +10,12 @@
     "run_worker_first": ["/api/*"],
   },
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "Room" }],
+    "bindings": [{ "name": "PARTIES", "class_name": "Party" }],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Room"] },
+    // Parties replace per-game rooms. Deleting Room drops every old room and its storage.
+    { "tag": "v2", "new_sqlite_classes": ["Party"], "deleted_classes": ["Room"] },
+  ],
   "observability": { "enabled": true },
 }

@@ -1,12 +1,12 @@
-// Entry point: room API under /api, everything else is the static app.
+// Entry point: party API under /api, everything else is the static app.
 
-import { CODE_ALPHABET, CODE_LENGTH, isCode } from "../src/games/mini-golf/core/protocol.ts";
-import type { Room } from "./room.ts";
+import { CODE_ALPHABET, CODE_LENGTH, isCode } from "../src/party/protocol.ts";
+import type { Party } from "./party.ts";
 
-export { Room } from "./room.ts";
+export { Party } from "./party.ts";
 
 export interface Env {
-  ROOMS: DurableObjectNamespace<Room>;
+  PARTIES: DurableObjectNamespace<Party>;
   ASSETS: Fetcher;
 }
 
@@ -25,24 +25,24 @@ function json(body: unknown, status = 200): Response {
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/api/rooms") {
+    if (url.pathname === "/api/parties") {
       if (request.method !== "POST") return json({ error: "method" }, 405);
       // A fresh code almost never collides; init refuses one that is taken.
       for (let i = 0; i < 5; i++) {
         const code = newCode();
-        if (await env.ROOMS.getByName(code).init(code)) return json({ code }, 201);
+        if (await env.PARTIES.getByName(code).init(code)) return json({ code }, 201);
       }
       return json({ error: "busy" }, 503);
     }
 
-    const match = /^\/api\/rooms\/([^/]+)(\/ws)?$/.exec(url.pathname);
+    const match = /^\/api\/parties\/([^/]+)(\/ws)?$/.exec(url.pathname);
     if (match && isCode(match[1]!)) {
-      const room = env.ROOMS.getByName(match[1]!);
+      const party = env.PARTIES.getByName(match[1]!);
       if (match[2]) {
         if (request.headers.get("upgrade") !== "websocket") return json({ error: "upgrade" }, 426);
-        return room.fetch(request);
+        return party.fetch(request);
       }
-      const info = await room.info();
+      const info = await party.info();
       return info ? json(info) : json({ error: "gone" }, 404);
     }
     return json({ error: "not found" }, 404);

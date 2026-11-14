@@ -1,16 +1,27 @@
 // The app shell: the session (how you're playing), the game menu, and a router
 // that hands each /<game>/... path to that game's code, loaded the first time
-// it opens.
+// it opens. Online, the party decides which game is open: the router follows
+// it on both phones, and a tap or a back button only asks the party for a
+// change.
 
 import "@fontsource-variable/outfit/wght.css";
 import "./base.css";
 import "./menu.css";
 
+import { isCode, normalizeCode } from "../party/protocol.ts";
 import { $, show } from "./dom.ts";
 import { GAMES, blurb, unsupported, type GameInfo, type GameModule } from "./games.ts";
 import { go, onRoute } from "./nav.ts";
-import { describe, loadSession } from "./session.ts";
-import { pickSession } from "./start.ts";
+import { PartyClient, createParty, invitePath, partyHost } from "./party.ts";
+import {
+  describe,
+  lastNames,
+  loadSession,
+  saveSession,
+  type OnlineSession,
+  type Session,
+} from "./session.ts";
+import { askName, initStart, pickParty, pickSession } from "./start.ts";
 
 const TITLE = "Games";
 const THEME = "#181a28";
@@ -19,6 +30,15 @@ const modules = new Map<string, Promise<GameModule>>();
 let current: { info: GameInfo; mod: GameModule } | null = null;
 /** Bumped on every route, so a slow game load cannot open over a later choice. */
 let routeId = 0;
+
+/** The party this phone is in, while the session is online. */
+let party: PartyClient | null = null;
+/** The name `party` was joined under, to rejoin after a change. */
+let partyName = "";
+/** Set while joining a party that is not saved yet: a code just made, typed or followed from a link. */
+let joining: string | null = null;
+/** The game the router last followed the party to; undefined before the first party view. */
+let followed: string | null | undefined;
 
 function loadGame(info: GameInfo): Promise<GameModule> {
   let mod = modules.get(info.id);
@@ -41,41 +61,107 @@ function theme(info: GameInfo | null) {
 function leaveGame() {
   current?.mod.close();
   current = null;
+  party?.closeChannel();
 }
 
 function showMenu() {
   leaveGame();
   theme(null);
   const session = loadSession();
-  if (!session) return pickSession(null, showMenu, null);
-  $("menu-chip-text").textContent = describe(session);
-  for (const a of tiles.querySelectorAll<HTMLAnchorElement>("a.tile")) {
-    const info = GAMES.find((g) => g.id === a.dataset.id)!;
-    const off = unsupported(info, session.mode) !== null;
-    a.classList.toggle("off", off);
-    if (off) a.setAttribute("aria-disabled", "true");
-    else a.removeAttribute("aria-disabled");
-    a.querySelector("small")!.textContent = blurb(info, session.mode);
-  }
+  if (!session) return pickSession(null, null);
+  paintMenu(session);
   show("games");
 }
 
-async function route() {
-  const id = ++routeId;
-  const path = location.pathname;
+/** Why online games can't open right now, or null when they can. */
+function partyBlocked(): string | null {
+  if (!party) return "Not in a party";
+  if (party.error === "version") return "Reload to update";
+  if (party.error === "replaced") return "On another screen";
+  if (party.status !== "open" || !party.view) return "Connecting...";
+  if (!party.friend) return "Waiting for a friend";
+  return null;
+}
+
+/** The chip, the party code and the tiles, for `session`. */
+function paintMenu(session: Session) {
+  const online = session.mode === "online";
+  const blocked = online ? partyBlocked() : null;
+  const friend = party?.friend ?? null;
+  const dot = $("menu-chip-dot");
+  dot.hidden = !online;
+  dot.className = "dot";
+  if (!online) {
+    $("menu-chip-text").textContent = describe(session);
+  } else if (blocked && blocked !== "Waiting for a friend") {
+    $("menu-chip-text").textContent = `Online · ${blocked}`;
+    dot.classList.add("wait");
+  } else if (!friend) {
+    $("menu-chip-text").textContent = "Online · Waiting for a friend";
+  } else {
+    $("menu-chip-text").textContent = friend.connected
+      ? `Online · with ${friend.name}`
+      : `Online · ${friend.name} is away`;
+    dot.classList.add(friend.connected ? "live" : "wait");
+  }
+
+  // Until a friend is seated, the code to send them sits above the games.
+  const code = online && party && party.view && !friend ? party.code : null;
+  $("menu-party").hidden = !code;
+  if (code) {
+    $("menu-party-code").textContent = code;
+    $("menu-invite-url").textContent = `${location.host}${invitePath(code)}`;
+  }
+
+  for (const a of tiles.querySelectorAll<HTMLAnchorElement>("a.tile")) {
+    const info = GAMES.find((g) => g.id === a.dataset.id)!;
+    const why = unsupported(info, session.mode) ?? blocked;
+    a.classList.toggle("off", why !== null);
+    if (why) a.setAttribute("aria-disabled", "true");
+    else a.removeAttribute("aria-disabled");
+    a.querySelector("small")!.textContent = why ?? blurb(info, session.mode);
+  }
+}
+
+/** Where `path` points: a game, or null for the menu. */
+function gameAt(path: string): { info: GameInfo; rest: string } | null {
   const [, first = "", rest = ""] = /^\/([^/]*)(.*)$/.exec(path) ?? [];
   const info = GAMES.find((g) => g.id === first);
-  if (!info) {
-    if (path !== "/") history.replaceState(null, "", "/");
-    return showMenu();
+  return info ? { info, rest: rest.replace(/\/$/, "") } : null;
+}
+
+async function route(): Promise<void> {
+  const path = location.pathname;
+
+  // Old per-game room links now go to the party with the same code.
+  const old = /^\/mini-golf\/r\/([^/]+)\/?$/.exec(path);
+  if (old) {
+    history.replaceState(null, "", invitePath(normalizeCode(decodeURIComponent(old[1]!))));
+    return route();
   }
+  const invite = /^\/p\/([^/]*)\/?$/.exec(path);
+  if (invite) return followInvite(normalizeCode(decodeURIComponent(invite[1]!)));
+
+  const target = gameAt(path);
   const session = loadSession();
   if (!session) {
     // A link straight to a game: ask how they're playing, then carry on to it.
+    ++routeId;
     leaveGame();
     theme(null);
-    return pickSession(null, () => void route(), null);
+    return pickSession(null, null);
   }
+  if (session.mode === "online") return routeOnline(session, target);
+  if (!target) {
+    ++routeId;
+    if (path !== "/") history.replaceState(null, "", "/");
+    return showMenu();
+  }
+  return openGame(target.info, target.rest, session);
+}
+
+async function openGame(info: GameInfo, rest: string, session: Session) {
+  const id = ++routeId;
   const why = unsupported(info, session.mode);
   if (why) {
     history.replaceState(null, "", "/");
@@ -89,6 +175,7 @@ async function route() {
     mod = await loadGame(info);
   } catch {
     if (id !== routeId) return;
+    if (session.mode === "online") party?.pick(null);
     history.replaceState(null, "", "/");
     showMenu();
     return toast(
@@ -97,7 +184,12 @@ async function route() {
   }
   if (id !== routeId) return;
   current = { info, mod };
-  mod.open(rest.replace(/\/$/, ""), session);
+  if (session.mode === "online") {
+    if (!party) return showMenu();
+    mod.open(rest, { ...session, channel: party.open(info.id) });
+  } else {
+    mod.open(rest, session);
+  }
 }
 
 function toast(text: string) {
@@ -106,6 +198,206 @@ function toast(text: string) {
   el.classList.add("on");
   clearTimeout(Number(el.dataset.timer));
   el.dataset.timer = String(setTimeout(() => el.classList.remove("on"), 2600));
+}
+
+// ---------- party ----------
+
+/** A user went to `target` online: open what the party has open, or ask it for a change. */
+function routeOnline(session: OnlineSession, target: { info: GameInfo; rest: string } | null) {
+  if (!session.party) {
+    ++routeId;
+    leaveGame();
+    theme(null);
+    if (location.pathname !== "/") history.replaceState(null, "", "/");
+    return pickParty();
+  }
+  connect(session.party, session.names[0]);
+  const p = party!;
+  // A link to a game this party can't play: stay on what it has open, and say why.
+  const why = target && unsupported(target.info, "online");
+  if (why) toast(`${target.info.title}: ${why.toLowerCase()}`);
+  if (!p.view || p.me === null) {
+    // Not seated yet: the menu says so, and the welcome brings the party's game.
+    ++routeId;
+    return showMenu();
+  }
+  const want = target?.info.id ?? null;
+  if (why || want === p.view.game) return follow(true);
+  if (want === null) {
+    // Back to the menu (the back button, say): close here at once, then for both.
+    if (p.pick(null)) {
+      ++routeId;
+      followed = null;
+      return showMenu();
+    }
+  } else if (!partyBlocked()) {
+    p.pick(want);
+  }
+  // Until the party agrees, stay on what it has open.
+  follow(true);
+}
+
+/** Takes the URL and the screen to the party's game, when it changed (or when `force`). */
+function follow(force = false) {
+  const p = party;
+  const view = p?.view;
+  if (!p || !view || p.me === null) return;
+  const game = view.game;
+  const changed = game !== followed;
+  const was = followed;
+  followed = game;
+  if (!changed && !force) {
+    const s = loadSession();
+    if (s && $("games").classList.contains("on")) paintMenu(s);
+    return;
+  }
+  const info = game ? GAMES.find((g) => g.id === game) : undefined;
+  if (game && !info) {
+    // A game this version doesn't have: back to the menu for both.
+    p.pick(null);
+    return;
+  }
+  if (info) {
+    const path = `/${info.id}`;
+    if (gameAt(location.pathname)?.info !== info) history.pushState({ party: true }, "", path);
+    if (current?.info === info) return;
+    void openGame(info, "", loadSession() ?? { mode: "online", names: [partyName], party: p.code });
+    return;
+  }
+  if (location.pathname !== "/") {
+    // Drop the game's history entry when the party pushed it, so back doesn't reopen it.
+    if (pushedByParty()) history.back();
+    else history.replaceState(null, "", "/");
+  }
+  ++routeId;
+  showMenu();
+  const by = view.pickedBy;
+  if (was && changed && by !== null && by !== p.me) {
+    toast(`${view.players[by]?.name ?? "Your friend"} went back to the menu`);
+  }
+}
+
+/** True when the current history entry is a game the party opened, on top of the menu. */
+function pushedByParty(): boolean {
+  return (history.state as { party?: boolean } | null)?.party === true;
+}
+
+/** Connects to party `code` as `name`, unless already connected that way. */
+function connect(code: string, name: string) {
+  if (party && party.code === code && partyName === name && !party.error && party.status !== "closed") return;
+  party?.close();
+  followed = undefined;
+  partyName = name;
+  party = new PartyClient(code, name, onParty);
+}
+
+function disconnect() {
+  party?.close();
+  party = null;
+  followed = undefined;
+}
+
+/** Joins party `code` from the start screens: saved once the party seats this phone. */
+function join(code: string) {
+  const s = loadSession();
+  if (s?.mode !== "online") return;
+  if (s.party === code && party?.code === code && party.me !== null) return void go("/");
+  disconnect();
+  saveSession({ ...s, party: null });
+  joining = code;
+  pickParty(`Joining party ${code}...`, "busy");
+  connect(code, s.names[0]);
+}
+
+/** Leaves the party for good, then asks for a new one. */
+function leaveParty() {
+  party?.leave();
+  forget("", false);
+}
+
+/** Drops the saved party without telling the server, and shows the party step. */
+function forget(note: string, error: boolean) {
+  disconnect();
+  joining = null;
+  const s = loadSession();
+  if (s?.mode === "online") saveSession({ ...s, party: null });
+  ++routeId;
+  leaveGame();
+  theme(null);
+  if (location.pathname !== "/") history.replaceState(null, "", "/");
+  pickParty(note, error ? "error" : "info");
+}
+
+const REFUSED: Record<string, string> = {
+  full: "Two players are already in that party. Ask for a new code.",
+  gone: "That party has ended or expired. Make a new code.",
+  version: "A newer version is out. Reload to play.",
+};
+
+/** Runs after every change on the party client. */
+function onParty() {
+  const p = party;
+  if (!p) return;
+  const code = p.code;
+
+  if (joining === code) {
+    if (p.error || p.status === "closed") {
+      const why = REFUSED[p.error ?? "gone"] ?? REFUSED.gone!;
+      return forget(why, true);
+    }
+    if (p.me === null || p.status !== "open") return;
+    // Seated: now it's ours, and a reload rejoins it.
+    joining = null;
+    const s = loadSession();
+    if (s?.mode === "online") saveSession({ ...s, party: code });
+    if (location.pathname !== "/") history.replaceState(null, "", "/");
+    followed = undefined;
+    return follow(true);
+  }
+
+  if (p.error === "gone" || p.error === "full" || (p.status === "closed" && !p.error)) {
+    return forget(REFUSED[p.error ?? "gone"]!, true);
+  }
+  if (p.error === "version" || p.error === "replaced") {
+    if (current) {
+      ++routeId;
+      if (location.pathname !== "/") history.replaceState(null, "", "/");
+      showMenu();
+    } else if ($("games").classList.contains("on")) {
+      paintMenu(loadSession()!);
+    }
+    return toast(p.error === "version" ? REFUSED.version! : "Playing on another screen now");
+  }
+
+  const view = p.view;
+  if (view?.status === "ended") {
+    if (view.leftBy === p.me) return;
+    const name = view.leftBy === null ? "Your friend" : (view.players[view.leftBy]?.name ?? "Your friend");
+    return forget(`${name} left the party.`, false);
+  }
+  if (p.status === "open") follow();
+  else if ($("games").classList.contains("on")) paintMenu(loadSession()!);
+}
+
+/** An invite link: join it, asking for a name first if this phone has none. */
+async function followInvite(code: string): Promise<void> {
+  ++routeId;
+  leaveGame();
+  theme(null);
+  if (!isCode(code)) {
+    history.replaceState(null, "", "/");
+    return route();
+  }
+  const s = loadSession();
+  if (s?.mode === "online" && s.party === code) {
+    history.replaceState(null, "", "/");
+    return route();
+  }
+  const name = s?.names[0] ?? lastNames()[0];
+  if (!name) return askName(code, partyHost(code));
+  if (party && s?.mode !== "online") disconnect();
+  saveSession({ mode: "online", names: [name], party: s?.mode === "online" ? s.party : null });
+  join(code);
 }
 
 // ---------- menu ----------
@@ -130,17 +422,68 @@ tiles.addEventListener("click", (e) => {
   if (a.classList.contains("off")) return e.preventDefault();
   if (e.metaKey || e.ctrlKey || e.shiftKey) return;
   e.preventDefault();
-  go(a.pathname);
+  // Online, the tile asks the party; both phones open the game when it agrees.
+  if (loadSession()?.mode === "online" && party) party.pick(a.dataset.id!);
+  else go(a.pathname);
 });
 
-$("menu-chip").addEventListener("click", () => pickSession(loadSession(), showMenu, () => show("games")));
+$("menu-chip").addEventListener("click", () => pickSession(loadSession(), () => show("games")));
 
-// Any game's "all games" button.
+function inviteLink(): string {
+  return `${location.origin}${invitePath(party?.code ?? "")}`;
+}
+
+$("menu-copy").addEventListener("click", async () => {
+  const btn = $("menu-copy");
+  try {
+    await navigator.clipboard.writeText(inviteLink());
+    btn.textContent = "Copied";
+  } catch {
+    btn.textContent = "Copy failed";
+  }
+  setTimeout(() => (btn.textContent = "Copy link"), 1500);
+});
+
+$("menu-share").addEventListener("click", async () => {
+  const url = inviteLink();
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Games?", text: "Play some games with me", url });
+    } catch {
+      // Dismissed.
+    }
+  } else {
+    $("menu-copy").click();
+  }
+});
+
+// Any game's "all games" button. Online it closes the game for both phones.
 document.addEventListener("click", (e) => {
-  if ((e.target as Element).closest("[data-menu]")) go("/");
+  if (!(e.target as Element).closest("[data-menu]")) return;
+  // The router then asks the party to go back to the menu.
+  if (loadSession()?.mode === "online" && pushedByParty()) history.back();
+  else go("/");
 });
 
 // ---------- start ----------
+
+initStart({
+  done(s) {
+    if (s.mode !== "online") {
+      // Another way of playing: the friend is told the party is over.
+      party?.leave();
+      disconnect();
+      return void route();
+    }
+    if (!s.party) return pickParty();
+    connect(s.party, s.names[0]);
+    // Carry on to where the player was going: the menu, or a game's link on a first visit.
+    void route();
+  },
+  join,
+  leave: () => leaveParty(),
+  create: () => createParty().catch(() => null),
+});
 
 onRoute(() => void route());
 void route();

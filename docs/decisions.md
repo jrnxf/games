@@ -16,13 +16,15 @@ The game is one canvas plus a handful of simple screens. Vite gives a fast dev s
 
 ## Cloudflare Worker with a Durable Object per room
 
+Superseded by "Parties, not rooms" below: the Worker and the authority stay, but one Durable Object now holds a party, not a golf room.
+
 Online play needs a small authority that holds turn state and fans out moves to two phones. A Durable Object is exactly one stateful instance per room, addressed by the room code, with WebSockets built in. One Worker serves both the static app and the `/api` routes, so there is a single deploy and no CORS. Rooms use the WebSocket hibernation API (idle rooms cost nothing) and SQLite-backed storage (free plan). It runs fully locally with `wrangler dev`.
 
 The room replays every stroke with the shared physics and broadcasts the result, so it is the source of truth: a phone animates its own stroke at once (it would compute the same path) and then settles on the server's state. A stroke carries the stroke count it was aimed from; a stale or out-of-turn stroke is refused and the phone is resynced.
 
 ## No accounts, no personal data kept
 
-A phone gets a random token on first launch and keeps it in local storage. That token is the only thing that ties a player to a seat, which is enough to take the seat back after a dropped connection or a reload. The one exception is the lobby: a guest seat whose phone has no live connection goes to the next phone that opens the invite, so a stale join cannot lock the host's friend out. Names are typed per game and live only in the room. A room deletes all of its storage two hours after its last activity, or ten minutes after a player leaves.
+A phone gets a random token on first launch and keeps it in local storage. That token is the only thing that ties a player to a seat, which is enough to take the seat back after a dropped connection or a reload. The one exception is the lobby: a guest seat whose phone has no live connection goes to the next phone that opens the invite, so a stale join cannot lock the host's friend out. Names are typed per game and live only in the room (now the party, see below). A room deletes all of its storage two hours after its last activity, or ten minutes after a player leaves.
 
 ## Turn and score rules
 
@@ -72,4 +74,12 @@ The computer (`core/ai.ts`, no DOM) is a fixed-depth minimax with alpha-beta tha
 
 The first screen asks how you're playing (solo, pass & play or online) and then who's playing, before the menu, so no game asks again. The answer is the session: the mode, one or two names and, in solo, the computer's level (Easy, Medium or Hard). It is saved under `shell.` and passed to every game as `open(rest, session)`. Each game's `info.ts` says which modes it plays, and solo can be "alone" (Mini Golf against par) or "computer". A game that can't play the current mode stays on the menu, dimmed, with a one-line reason, so the list never jumps around; a link to it goes back to the menu and says why. A chip on the menu reopens the picker with the current answers filled in. A link to a game on a first visit shows the picker, then goes on to that game, and a Mini Golf invite link still lands on its join screen with your name filled in.
 
-Online is kept small on purpose: the session only holds your name, and Mini Golf's own create-or-join screen and rooms do the rest. Parties, where the shell holds the connection and any game can use it, come next and will add a channel to the online session. The cost: a game with a richer setup (teams, rule options) still needs its own screen after the menu.
+Online is kept small on purpose: the session only holds your name, and Mini Golf's own create-or-join screen and rooms do the rest. Parties, where the shell holds the connection and any game can use it, come next and will add a channel to the online session. (They did: see "Parties, not rooms".) The cost: a game with a richer setup (teams, rule options) still needs its own screen after the menu.
+
+## Parties, not rooms
+
+Online play is a party of two phones, not a room per game. One phone makes a code and sends the link (`/p/<code>`), the other opens it, and they stay together for every online game: either player taps a game and both phones open it, and leaving a game takes both back to the menu. The shell holds the one WebSocket, and the online session saves the party code, so reopening the app rejoins. Old golf room links (`/mini-golf/r/<code>`) go to the party with the same code.
+
+One `Party` Durable Object per code holds the two seats (token and name), which game is open and that game's state. It keeps the room's habits: hibernating WebSockets, SQLite storage, and deleting itself two hours after the last activity or ten minutes after a player leaves. The stale-guest rule carries over: until the two players first open a game together, a guest seat with no live phone goes to the next phone with the link; after that the seat is kept. The maker's seat is never given away. The `v2` migration deletes the old `Room` class, so links to old rooms find nothing.
+
+Each online game has a host (`src/party/host.ts`): `start`, `parse`, `receive` and `sync`, plain data and pure functions, listed in `worker/hosts.ts`. The party checks the envelope and hands the game's messages to its host; a game on the phone gets a `Channel` with its seat, both players, the connection state, `send`, `listen` and `leave`, and never sees the socket. Golf's host keeps it server-authoritative: it replays each stroke, and a stale or out-of-turn stroke is refused and that phone resynced. A new online game is a host, one line in `worker/hosts.ts` and `online: true`. The protocol version went to 3, so a phone on the old room protocol is told to reload. The cost: a game's state lives only while it is open, so going back to the menu ends the round, and a party is two players only.

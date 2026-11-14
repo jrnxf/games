@@ -99,12 +99,44 @@
         </div>
         <div class="grow"></div>
         <button class="btn primary" type="submit" id="start-go">Continue</button>
+        <button class="btn ghost danger" type="button" id="start-leave" hidden>Leave party</button>
       </form>
+    </section>
+
+    <!-- Online: make a party code or enter a friend's. -->
+    <section class="screen" id="start-party" data-screen>
+      <div class="bar">
+        <button class="back" id="start-party-back" aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <span class="bar-title">Online</span>
+      </div>
+      <div class="pad stack start">
+        <h1 class="headline">Play a friend</h1>
+        <p class="lead">Make a code and send the link. You stay together for every game.</p>
+        <button class="btn primary" id="party-create">Create a code</button>
+        <div class="divider"><span>or enter a code</span></div>
+        <form class="code-row" id="party-form">
+          <input
+            id="party-input"
+            class="code-input"
+            maxlength="7"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            placeholder="CODE"
+            aria-label="Party code"
+          />
+          <button class="btn outline" type="submit">Join</button>
+        </form>
+        <p class="note" id="party-note" role="status"></p>
+      </div>
     </section>
 
     <!-- The game menu. Each game adds its own screens when it first opens. -->
     <section class="screen" id="games" data-screen>
       <button class="chip" id="menu-chip" aria-label="Change how you're playing">
+        <i class="dot" id="menu-chip-dot" hidden></i>
         <span id="menu-chip-text"></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
@@ -116,6 +148,18 @@
         <h1>Games</h1>
         <p>Pick a game.</p>
       </header>
+      <!-- Online, until a friend joins: the code to send them. -->
+      <div class="party" id="menu-party" hidden>
+        <p class="label">Party code</p>
+        <div class="party-code" id="menu-party-code">-----</div>
+        <div class="invite">
+          <div class="invite-url" id="menu-invite-url"></div>
+          <div class="invite-actions">
+            <button id="menu-copy">Copy link</button>
+            <button id="menu-share">Share</button>
+          </div>
+        </div>
+      </div>
       <nav class="tiles" id="tiles" aria-label="Games"></nav>
       <p class="soon">More games coming soon</p>
     </section>

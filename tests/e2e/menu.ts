@@ -8,9 +8,9 @@
 import { execFileSync } from "node:child_process";
 import { computerMove } from "../../src/games/connect-four/core/ai.ts";
 import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
-import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
+import { Browser, check, serverPort, SHOTS, startServer, waitFor } from "./browser.ts";
 
-const PORT = Number(process.env.E2E_PORT ?? 4321);
+const PORT = await serverPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 interface C4State {
@@ -280,24 +280,26 @@ try {
   await waitFor("menu after back", () => phone.visible("games"));
   check(true, "the back button leaves a game for the menu");
 
-  // An online session dims Connect Four, and its link goes back to the menu.
+  // Online with no party yet asks for one first, even from a game's link.
+  // The party itself needs the worker: `pnpm test:online` plays it through.
   phone.click("#menu-chip");
   await phone.pickSession("online", ["Zoe"]);
-  await waitFor("menu", () => phone.visible("games"));
-  check(phone.text('#tiles a[href="/connect-four"] small') === "Not online yet", "online dims Connect Four");
-  phone.click('#tiles a[href="/connect-four"]');
-  check(phone.visible("games"), "a dimmed tile does not open");
+  await waitFor("party step", () => phone.visible("start-party"));
   phone.open(`${ORIGIN}/connect-four`);
-  await waitFor("menu toast", () =>
-    phone.eval<boolean>(`() => document.getElementById("menu-toast").classList.contains("on")`),
-  );
-  check(
-    phone.visible("games") && phone.text("#menu-toast") === "Connect Four: not online yet",
-    "a link to a game the mode can't play shows the menu and says why",
-  );
-  phone.screenshot("menu-online-toast");
-  phone.click("#menu-chip");
-  await phone.pickSession("pass-and-play", ["Zoe", "Kai"]);
+  await waitFor("party step from a link", () => phone.visible("start-party"));
+  check(!phone.visible("c4-home"), "online, a game link waits for a party");
+  phone.fill("#party-input", "abc");
+  phone.click('#party-form button[type="submit"]');
+  check(phone.text("#party-note") === "Party codes are 5 letters and numbers.", "a short code is refused");
+  phone.click("#start-party-back");
+  await waitFor("names", () => phone.visible("start-names"));
+  phone.click("#start-names-back");
+  await waitFor("mode picker", () => phone.visible("start-mode"));
+  phone.click('[data-mode="pass-and-play"]');
+  await waitFor("names screen", () => phone.visible("start-names"));
+  phone.fill("#start-name-0", "Zoe");
+  phone.fill("#start-name-1", "Kai");
+  phone.click("#start-go");
   await waitFor("menu", () => phone.visible("games"));
 
   // An unknown path falls back to the menu.

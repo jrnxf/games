@@ -1,8 +1,11 @@
 // Drives a headless Chrome through chrome-devtools-axi. Each Browser gets
-// its own named session, so several can run side by side (two phones).
+// its own named session, so several can run side by side (two phones), and
+// session names and server ports are picked per run, so suites in different
+// checkouts can run at the same time.
 
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dragFromPower } from "../../src/games/mini-golf/client/power.ts";
@@ -30,11 +33,32 @@ export interface ScreenState {
   };
 }
 
+/** The port a suite serves on: E2E_PORT if set, else a free one. */
+export async function serverPort(): Promise<number> {
+  return Number(process.env.E2E_PORT) || freePort();
+}
+
+/** Tells this run's browser sessions apart from any other run's. */
+const RUN = process.env.E2E_RUN ?? String(process.pid);
+
+/** A port nothing is listening on right now. */
+export async function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as { port: number };
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 export class Browser {
   readonly session: string;
 
-  constructor(session: string) {
-    this.session = session;
+  /** `name` says which suite and phone; the run's id is added to it. */
+  constructor(name: string) {
+    this.session = `${name}-${RUN}`;
   }
 
   private axi(args: string[], input?: string): string {
