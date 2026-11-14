@@ -138,15 +138,18 @@ class Search {
   private best(seat: Seat, depth: number, alpha: number, beta: number): number {
     const other = (1 - seat) as Seat;
     let forced = -1;
+    let threats = 0;
     for (const c of ORDER) {
       if (this.heights[c] === ROWS) continue;
       if (this.wouldWin(seat, c)) return WIN + depth;
       if (this.wouldWin(other, c)) {
-        // Two threats can't both be blocked: the other player wins next.
-        if (forced >= 0) return -(WIN + depth - 1);
         forced = c;
+        threats++;
       }
     }
+    // Two threats can't both be blocked: the other player wins next. Checked
+    // only after every column, so a win of our own in a later column comes first.
+    if (threats > 1) return -(WIN + depth - 1);
     // One threat: every other column loses at once, so only the block is worth searching.
     if (forced >= 0) return this.score(seat, forced, depth, alpha, beta);
     let best = -Infinity;

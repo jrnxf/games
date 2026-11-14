@@ -44,6 +44,17 @@ describe("connect four computer", () => {
     for (const depth of [2, 4, 9]) expect(bestColumns(p, depth)).toEqual([3]);
   });
 
+  it("blocks a win in one even when it faces two threats after", () => {
+    // Seat 0 has three in column 0. Seat 1 playing 2 would make two threats
+    // along the bottom, but seat 0 wins in column 0 first, so 0 is the only move.
+    const p = play([0, 3, 0, 4, 0]);
+    expect(p.turn).toBe(1);
+    for (const depth of [2, 4, 9]) expect(bestColumns(p, depth)).toEqual([0]);
+    for (const level of careful) {
+      for (let seed = 0; seed < 20; seed++) expect(computerMove(p, level, seed)).toBe(0);
+    }
+  });
+
   it("prefers its own win to a block", () => {
     // Both have three; seat 1 to move wins in column 6 rather than blocking column 3.
     const p = play([0, 6, 1, 6, 2, 6]);
