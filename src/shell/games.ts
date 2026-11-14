@@ -51,6 +51,12 @@ export function unsupported(info: GameInfo, mode: Mode): string | null {
   return "Not online yet";
 }
 
+/** The toast when a tap or a link asks for `info` in a mode it can't run in, or null when it can. */
+export function refusal(info: GameInfo, mode: Mode): string | null {
+  const why = unsupported(info, mode);
+  return why && `${info.title}: ${why.toLowerCase()}`;
+}
+
 /** The line under the title on the menu tile. */
 export function blurb(info: GameInfo, mode: Mode): string {
   const why = unsupported(info, mode);
