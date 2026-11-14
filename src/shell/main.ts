@@ -92,7 +92,6 @@ for (const g of GAMES) {
   a.style.setProperty("--from", g.tile[0]);
   a.style.setProperty("--to", g.tile[1]);
   a.innerHTML = `<svg viewBox="0 0 100 70" aria-hidden="true">${g.art}</svg>
-    ${g.badge ? `<span class="badge">${g.badge}</span>` : ""}
     <b>${g.title}</b><small>${g.blurb}</small>`;
   tiles.append(a);
 }

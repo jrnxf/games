@@ -24,7 +24,6 @@ export interface GameInfo {
   tile: readonly [string, string];
   /** Tile picture: inline SVG markup on a 100x70 view box. */
   art: string;
-  badge?: string;
   load(): Promise<GameModule>;
 }
 

@@ -13,6 +13,5 @@ export default {
     </g>
     <circle cx="50" cy="46" r="7" fill="#ff5c4d"/><circle cx="71" cy="46" r="7" fill="#ffd23f"/>
     <circle cx="71" cy="25" r="7" fill="#ff5c4d"/>`,
-  badge: "New",
   load: () => import("./client/main.ts"),
 } satisfies GameInfo;
