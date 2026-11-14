@@ -6,12 +6,12 @@
 // Run with `pnpm test:look` (builds first). Set E2E_SHOTS=<folder> to keep the shots.
 
 import { execFileSync } from "node:child_process";
-import { HOLES } from "../../src/core/holes.ts";
-import { findShot } from "../../src/core/solver.ts";
+import { HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 4321);
-const URL = `http://127.0.0.1:${PORT}/`;
+const URL = `http://127.0.0.1:${PORT}/mini-golf`;
 
 type RGB = [number, number, number];
 
@@ -21,14 +21,14 @@ const server = await startServer(
   ["preview", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
   /Local:/,
 );
-const phone = new Browser("minigolf-e2e-look");
+const phone = new Browser("arcade-e2e-look");
 
 /** The colour the canvas shows at each course point. */
 function pixels(points: [number, number][]): RGB[] {
   return phone.eval<RGB[]>(`() => {
     const c = document.getElementById("canvas");
     const ctx = c.getContext("2d");
-    const v = window.__minigolf.state().view;
+    const v = window.__miniGolf.state().view;
     const dpr = c.width / c.clientWidth;
     return ${JSON.stringify(points)}.map(([x, y]) => {
       const d = ctx.getImageData(Math.round((v.ox + x * v.s) * dpr), Math.round((v.oy + y * v.s) * dpr), 1, 1).data;

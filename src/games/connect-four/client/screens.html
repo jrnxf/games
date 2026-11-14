@@ -1,0 +1,75 @@
+<!-- Connect Four screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="c4-home" data-screen>
+  <div class="bar">
+    <button class="back" data-arcade aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Connect Four</span>
+  </div>
+  <form class="pad stack" id="c4-form">
+    <p class="lead">One phone, two players. Take turns dropping chips. Four in a row wins.</p>
+    <label class="field" style="--c: var(--p1)">
+      <span>Red</span>
+      <input id="c4-name-0" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Zoe" />
+    </label>
+    <label class="field" style="--c: var(--p2)">
+      <span>Yellow</span>
+      <input id="c4-name-1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Kai" />
+    </label>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="c4-start">Start</button>
+    <button class="btn outline" type="button" id="c4-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Board -->
+<section class="screen" id="c4-game" data-screen>
+  <div class="bar">
+    <button class="back" id="c4-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Connect Four</span>
+  </div>
+  <div class="c4-players">
+    <div class="c4-pl" id="c4-pl-0" style="--c: var(--p1); --cd: var(--p1-dark)">
+      <i class="c4-mini"></i>
+      <div><b class="c4-name"></b><small class="c4-sub"></small></div>
+      <span class="c4-wins" aria-label="Wins"></span>
+    </div>
+    <div class="c4-pl right" id="c4-pl-1" style="--c: var(--p2); --cd: var(--p2-dark)">
+      <i class="c4-mini"></i>
+      <div><b class="c4-name"></b><small class="c4-sub"></small></div>
+      <span class="c4-wins" aria-label="Wins"></span>
+    </div>
+  </div>
+  <div class="c4-play">
+    <div class="c4-wrap">
+      <div class="c4-rail">
+        <div class="c4-hover" id="c4-hover"><div class="c4-disc" id="c4-hover-disc"></div></div>
+      </div>
+      <div class="c4-board" id="c4-board" role="grid" aria-label="Board">
+        <div class="c4-col" id="c4-col"></div>
+      </div>
+    </div>
+  </div>
+  <div class="c4-controls" id="c4-controls">
+    <button class="c4-ctl" id="c4-left" aria-label="Move left">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <button class="c4-ctl c4-drop" id="c4-drop">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" /></svg>Drop
+    </button>
+    <button class="c4-ctl" id="c4-right" aria-label="Move right">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+    </button>
+  </div>
+  <div class="c4-result" id="c4-result" hidden>
+    <h2 id="c4-result-title" role="status"></h2>
+    <div class="c4-result-row">
+      <button class="btn outline" data-arcade>All games</button>
+      <button class="btn primary" id="c4-again">Play again</button>
+    </div>
+  </div>
+</section>

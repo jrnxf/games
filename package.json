@@ -1,5 +1,5 @@
 {
-  "name": "minigolf",
+  "name": "pocket-arcade",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json && tsc -p worker/tsconfig.json",
     "test": "vitest run",
+    "test:arcade": "node tests/e2e/arcade.ts",
     "test:e2e": "node tests/e2e/pass-and-play.ts",
     "test:solo": "node tests/e2e/solo.ts",
     "test:online": "node tests/e2e/online.ts",

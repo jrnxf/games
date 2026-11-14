@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MAX_SPEED, MIN_POWER } from "../../src/core/constants.ts";
-import { isValidShot, shotFromAim } from "../../src/core/physics.ts";
-import { MIN_DRAG, dragFromPower, powerFromDrag } from "../../src/client/power.ts";
+import { MAX_SPEED, MIN_POWER } from "../../src/games/mini-golf/core/constants.ts";
+import { isValidShot, shotFromAim } from "../../src/games/mini-golf/core/physics.ts";
+import { MIN_DRAG, dragFromPower, powerFromDrag } from "../../src/games/mini-golf/client/power.ts";
 
 describe("power curve", () => {
   it("puts the lower 70% of the drag exactly where the old 760 top speed had it", () => {

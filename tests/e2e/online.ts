@@ -9,14 +9,14 @@ import { execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyShot, holeOf, type MatchState } from "../../src/core/match.ts";
-import { PROTOCOL, type ClientMessage, type ServerMessage } from "../../src/core/protocol.ts";
-import { findShot } from "../../src/core/solver.ts";
+import { applyShot, holeOf, type MatchState } from "../../src/games/mini-golf/core/match.ts";
+import { PROTOCOL, type ClientMessage, type ServerMessage } from "../../src/games/mini-golf/core/protocol.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 import { Browser, check, SHOTS, startServer, waitFor } from "./browser.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 8797);
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const STATE = mkdtempSync(join(tmpdir(), "minigolf-wrangler-"));
+const STATE = mkdtempSync(join(tmpdir(), "arcade-wrangler-"));
 
 let worker: ChildProcess | null = null;
 
@@ -205,10 +205,10 @@ async function protocolTest() {
 
 async function uiTest() {
   console.log("part 2: two phones through the UI");
-  const a = new Browser("minigolf-e2e-online-a");
-  const b = new Browser("minigolf-e2e-online-b");
+  const a = new Browser("arcade-e2e-online-a");
+  const b = new Browser("arcade-e2e-online-b");
   try {
-    a.open(`${ORIGIN}/`);
+    a.open(`${ORIGIN}/mini-golf`);
     a.click("#go-online");
     a.fill("#online-name", "Ana");
     a.click("#create-room");
@@ -216,10 +216,10 @@ async function uiTest() {
       const c = a.text("#room-code");
       return /^[A-Z0-9]{5}$/.test(c) && a.visible("lobby") ? c : null;
     });
-    check(a.text("#invite-url").endsWith(`/r/${code}`), "lobby shows the invite link");
+    check(a.text("#invite-url").endsWith(`/mini-golf/r/${code}`), "lobby shows the invite link");
     a.screenshot("online-lobby-waiting");
 
-    b.open(`${ORIGIN}/r/${code}`);
+    b.open(`${ORIGIN}/mini-golf/r/${code}`);
     await waitFor("join screen", () => b.text("#join-title") === "Ana invited you");
     b.screenshot("online-join");
     b.fill("#join-name", "Kai");
@@ -253,7 +253,7 @@ async function uiTest() {
     b.screenshot("online-your-turn");
 
     // A dropped tab: Kai's page reloads and takes the seat back.
-    b.open(`${ORIGIN}/r/${code}`);
+    b.open(`${ORIGIN}/mini-golf/r/${code}`);
     await waitFor("rejoined", () => b.state().match?.strokes === 1 && b.state().me === 1);
     check(b.state().canAim, "after a reload the friend is back in the game, still on turn");
 

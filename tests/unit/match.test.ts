@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAX_STROKES, PICKUP_SCORE } from "../../src/core/constants.ts";
-import { HOLES, type Hole } from "../../src/core/holes.ts";
+import { MAX_STROKES, PICKUP_SCORE } from "../../src/games/mini-golf/core/constants.ts";
+import { HOLES, type Hole } from "../../src/games/mini-golf/core/holes.ts";
 import {
   applyShot,
   createMatch,
@@ -13,8 +13,8 @@ import {
   winner,
   type MatchState,
   type Seat,
-} from "../../src/core/match.ts";
-import { findShot } from "../../src/core/solver.ts";
+} from "../../src/games/mini-golf/core/match.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 
 /** A soft tap that never reaches the cup from the tee. */
 const TAP = { vx: 0, vy: -60 };

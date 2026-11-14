@@ -8,7 +8,7 @@ import { holeOf, other, scoreName, total, winner, type MatchState, type Seat } f
 import { shotFromAim, simulateShot, type Shot, type ShotResult } from "../core/physics.ts";
 import type { Aim } from "../core/protocol.ts";
 import { formatVsPar, soloTotal, soloVsPar } from "../core/solo.ts";
-import { $, show } from "./dom.ts";
+import { $, show } from "../../../arcade/dom.ts";
 import { MIN_DRAG, powerFromDrag } from "./power.ts";
 import { PLAYER_COLORS, Renderer, type AimSprite, type Joystick, type Scene } from "./render.ts";
 import { sfx } from "./sfx.ts";
@@ -108,7 +108,7 @@ export class GameScreen {
     });
 
     // Read-only view for the end-to-end tests: what is on screen and where.
-    (window as unknown as { __minigolf: unknown }).__minigolf = {
+    (window as unknown as { __miniGolf: unknown }).__miniGolf = {
       state: () => ({
         match: this.match,
         me: this.driver?.me ?? null,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BALL_R, MAX_SPEED, MAX_TICKS } from "../../src/core/constants.ts";
-import { HOLES, type Hole, type Point } from "../../src/core/holes.ts";
+import { BALL_R, MAX_SPEED, MAX_TICKS } from "../../src/games/mini-golf/core/constants.ts";
+import { HOLES, type Hole, type Point } from "../../src/games/mini-golf/core/holes.ts";
 import {
   inSand,
   isValidShot,
@@ -8,8 +8,8 @@ import {
   shotFromAim,
   simulateShot,
   type Shot,
-} from "../../src/core/physics.ts";
-import { findShot, pathDistance } from "../../src/core/solver.ts";
+} from "../../src/games/mini-golf/core/physics.ts";
+import { findShot, pathDistance } from "../../src/games/mini-golf/core/solver.ts";
 
 const [gate, dogleg, ramp, , switchback, volcano] = HOLES as [Hole, Hole, Hole, Hole, Hole, Hole];
 

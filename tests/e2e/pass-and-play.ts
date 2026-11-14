@@ -3,13 +3,13 @@
 // rematch. Run with `pnpm test:e2e` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
-import { HOLES } from "../../src/core/holes.ts";
-import { total } from "../../src/core/match.ts";
-import { findShot } from "../../src/core/solver.ts";
+import { HOLES } from "../../src/games/mini-golf/core/holes.ts";
+import { total } from "../../src/games/mini-golf/core/match.ts";
+import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 import { Browser, SHOTS, check, startServer, waitFor } from "./browser.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 4317);
-const URL = `http://127.0.0.1:${PORT}/`;
+const URL = `http://127.0.0.1:${PORT}/mini-golf`;
 
 execFileSync("pnpm", ["build"], { stdio: "inherit" });
 const server = await startServer(
@@ -17,7 +17,7 @@ const server = await startServer(
   ["preview", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
   /Local:/,
 );
-const phone = new Browser("minigolf-e2e-pass-and-play");
+const phone = new Browser("arcade-e2e-pass-and-play");
 
 try {
   console.log(`pass-and-play e2e at ${URL} (screenshots in ${SHOTS})`);
