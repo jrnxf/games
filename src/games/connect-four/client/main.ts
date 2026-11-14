@@ -9,6 +9,7 @@
 import "./styles.css";
 import screens from "./screens.html?raw";
 
+import { ConnectionBanner } from "../../../shell/banner.ts";
 import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
 import type { GameSession } from "../../../shell/session.ts";
@@ -76,9 +77,8 @@ let latest: FourMatch | null = null;
 let pending: number | null = null;
 /** Online: whether the last board drawn was this phone's turn, for the your-turn alert. */
 let wasMine = false;
-let wasConnected = false;
+let banner: ConnectionBanner | null = null;
 let toastTimer = 0;
-let bannerTimer = 0;
 
 /** Online, while the friend is on turn or the host has not sent the game yet. */
 const waiting = () => channel !== null && (latest === null || (!isOver(board) && board.turn !== me));
@@ -457,22 +457,6 @@ function setBanner(text: string | null, ok = false) {
   el.classList.toggle("ok", ok);
 }
 
-/** The connection banner, as golf shows it: this phone's link first, then the friend's. */
-function updateBanner() {
-  const ch = channel;
-  if (!ch) return;
-  const recovered = !wasConnected && ch.connected;
-  wasConnected = ch.connected;
-  clearTimeout(bannerTimer);
-  const friend = ch.players[1 - me]!;
-  if (!ch.connected) setBanner("Connection lost · reconnecting...");
-  else if (!friend.connected) setBanner(`${friend.name} dropped out · waiting...`);
-  else if (recovered) {
-    setBanner("Back online", true);
-    bannerTimer = window.setTimeout(() => setBanner(null), 1600);
-  } else setBanner(null);
-}
-
 function onMessage(msg: FourServerMessage) {
   if (msg.t === "state") {
     latest = msg.match;
@@ -488,7 +472,7 @@ function onChange() {
   if (!ch) return;
   const [a, b] = ch.players;
   names = [a.name, b.name];
-  updateBanner();
+  banner?.update();
   // A falling chip redraws when it lands.
   if (!busy) draw();
 }
@@ -499,11 +483,11 @@ function openOnline(ch: Channel<FourServerMessage, FourClientMessage>) {
   latest = null;
   pending = null;
   wasMine = false;
-  wasConnected = ch.connected;
   wins = [0, 0];
   const [a, b] = ch.players;
   names = [a.name, b.name];
-  setBanner(null);
+  banner?.stop();
+  banner = new ConnectionBanner(ch, setBanner);
   // An empty board, waiting, until the host sends the game.
   startGame(newBoard());
   ch.listen({ message: onMessage, change: onChange });
@@ -577,7 +561,7 @@ export function close(): void {
   channel = null;
   latest = null;
   clearTimeout(toastTimer);
-  clearTimeout(bannerTimer);
   $("c4-toast").classList.remove("on");
-  setBanner(null);
+  banner?.stop();
+  banner = null;
 }

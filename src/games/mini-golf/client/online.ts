@@ -2,9 +2,10 @@
 // on the server is the authority; this phone predicts its own strokes so they
 // start rolling at once, then settles on whatever the server says.
 
-import { applyShot, other, type MatchState } from "../core/match.ts";
+import { applyShot, type MatchState } from "../core/match.ts";
 import type { Shot } from "../core/physics.ts";
 import type { Aim, GolfClientMessage, GolfServerMessage, GolfState } from "../core/protocol.ts";
+import { ConnectionBanner } from "../../../shell/banner.ts";
 import type { Channel } from "../../../shell/channel.ts";
 import type { Driver, GameScreen } from "./game.ts";
 import { PLAYER_COLORS } from "./render.ts";
@@ -18,13 +19,14 @@ export class OnlineGame implements Driver {
   /** The `at` of a stroke this phone sent and has already started rolling. */
   private pending: number | null = null;
   private online: boolean;
-  private bannerTimer = 0;
+  private readonly banner: ConnectionBanner;
   private closed = false;
 
   constructor(channel: Channel<GolfServerMessage, GolfClientMessage>, screen: GameScreen) {
     this.channel = channel;
     this.screen = screen;
     this.online = channel.connected;
+    this.banner = new ConnectionBanner(channel, (text, ok) => screen.setBanner(text, ok));
     channel.listen({ message: (m) => this.onMessage(m), change: () => this.onChange() });
   }
 
@@ -64,7 +66,7 @@ export class OnlineGame implements Driver {
   /** Stops drawing: the shell closed the game. */
   end(): void {
     this.closed = true;
-    clearTimeout(this.bannerTimer);
+    this.banner.stop();
     this.screen.stop();
   }
 
@@ -87,10 +89,9 @@ export class OnlineGame implements Driver {
 
   private onChange() {
     if (this.closed || !this.screen.active) return;
-    const was = this.online;
     this.online = this.channel.connected;
     this.screen.setConnected(this.online);
-    this.updateBanner(!was && this.online);
+    this.banner.update();
   }
 
   /** The whole state: on open, after every reconnect, and after a refused stroke. */
@@ -114,7 +115,7 @@ export class OnlineGame implements Driver {
     this.online = this.channel.connected;
     this.screen.setConnected(this.online);
     this.screen.setFlags(golf.ready, golf.rematch);
-    this.updateBanner(false);
+    this.banner.update();
   }
 
   private applyShot(seat: 0 | 1, shot: Shot, golf: GolfState) {
@@ -139,24 +140,5 @@ export class OnlineGame implements Driver {
     if (json === this.shown) return;
     this.shown = json;
     this.screen.enqueueState(match);
-  }
-
-  private updateBanner(recovered: boolean) {
-    clearTimeout(this.bannerTimer);
-    if (!this.channel.connected) {
-      this.screen.setBanner("Connection lost · reconnecting...");
-      return;
-    }
-    const friend = this.channel.players[other(this.me)];
-    if (!friend.connected) {
-      this.screen.setBanner(`${friend.name} dropped out · waiting...`);
-      return;
-    }
-    if (recovered) {
-      this.screen.setBanner("Back online", true);
-      this.bannerTimer = window.setTimeout(() => this.screen.setBanner(null), 1600);
-    } else {
-      this.screen.setBanner(null);
-    }
   }
 }
