@@ -54,31 +54,44 @@
       <div class="c4-board" id="c4-board" role="grid" aria-label="Board">
         <div class="c4-col" id="c4-col"></div>
       </div>
+      <!-- Solo: once the computer has a forced win, it says so here. -->
+      <p class="c4-lost" id="c4-lost" role="status"></p>
     </div>
   </div>
-  <div class="c4-controls" id="c4-controls">
-    <button class="c4-ctl" id="c4-left" aria-label="Move left">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-    </button>
-    <button class="c4-ctl c4-drop" id="c4-drop">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" /></svg>Drop
-    </button>
-    <button class="c4-ctl" id="c4-right" aria-label="Move right">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
-    </button>
-  </div>
-  <div class="c4-wait" id="c4-wait" hidden>
-    <p role="status">
-      <span id="c4-wait-text">Computer is thinking</span
-      ><span class="c4-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    </p>
-  </div>
-  <div class="c4-result" id="c4-result" hidden>
-    <h2 id="c4-result-title" role="status"></h2>
-    <p class="c4-note" id="c4-note" hidden></p>
-    <div class="c4-result-row">
-      <button class="btn outline" data-menu>All games</button>
-      <button class="btn primary" id="c4-again">Play again</button>
+  <div class="c4-dock">
+    <div class="c4-controls" id="c4-controls">
+      <button class="c4-ctl" id="c4-left" aria-label="Move left">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      </button>
+      <button class="c4-ctl c4-drop" id="c4-drop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" /></svg>Drop
+      </button>
+      <button class="c4-ctl" id="c4-right" aria-label="Move right">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+    <div class="c4-wait" id="c4-wait" hidden>
+      <p role="status">
+        <span id="c4-wait-text">Computer is thinking</span
+        ><span class="c4-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </p>
+    </div>
+    <div class="c4-result" id="c4-result" hidden>
+      <h2 id="c4-result-title" role="status"></h2>
+      <p class="c4-note" id="c4-note" hidden></p>
+      <!-- Solo: the computer's game in numbers. -->
+      <div class="c4-recap" id="c4-recap">
+        <dl class="c4-stats" id="c4-stats"></dl>
+        <div class="c4-spark" id="c4-spark" aria-hidden="true"></div>
+        <div class="c4-spark-key" aria-hidden="true">
+          <span id="c4-spark-label"></span><span class="c4-saw" id="c4-saw-key">&#9632; win in sight</span>
+        </div>
+        <button class="c4-watch" id="c4-watch" type="button">&#9654; Watch the ending</button>
+      </div>
+      <div class="c4-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="c4-again">Play again</button>
+      </div>
     </div>
   </div>
 </section>

@@ -10,7 +10,7 @@ Small games for your phone, in one web app you add to your home screen: no app s
 - **Online**: live turns in a party. You see your friend's aim line as they drag, get a "your turn" alert, and drop back in after a lost connection or a closed tab.
 - **Aim**: drag anywhere on the screen and let go. The preview line shows where the ball goes, bounces included.
 
-**Connect Four** (`/connect-four`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. You go first in the first game, then the first move alternates. The game saves after every move, the computer's turn included, and keeps a running score.
+**Connect Four** (`/connect-four`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. A chip hovers over the board: move it with the arrow buttons (or tap a column) and press Drop. You go first in the first game, then the first move alternates. The game saves after every move, the computer's turn included, and keeps a running score. In solo, once the computer has a forced win, a line under the board says so, and the result recaps its game, with a replay of how it won.
 
 - **Online**: red is the party's maker, yellow the friend, and whoever picked the game drops first. On your friend's turn you see their chip, dimmed, over the column they aim at, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
 

@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { computerMove } from "../../src/games/connect-four/core/ai.ts";
 import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
-import { Browser, check, serverPort, SHOTS, startServer, waitFor } from "./browser.ts";
+import { Browser, check, serverPort, SHOTS, startServer, VIEWPORT, waitFor } from "./browser.ts";
 
 const PORT = await serverPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
@@ -22,6 +22,7 @@ interface C4State {
   col: number;
   busy: boolean;
   thinking: boolean;
+  notes: { at: number; positions: number; ms: number; win: number | null }[];
   wins: [number, number];
   seed: number;
   level: "easy" | "medium" | "hard" | null;
@@ -121,6 +122,26 @@ try {
   phone.click("#c4-start");
   await waitFor("solo board", () => phone.visible("c4-game"));
   check(c4().turn === 0 && !c4().thinking && c4().level === "hard", "Zoe starts against Hard");
+  const boardTop = () =>
+    phone.eval<number>(`() => document.getElementById("c4-board").getBoundingClientRect().top`);
+  const top = boardTop();
+  const lostLine = () =>
+    phone.eval<string>(
+      `() => { const el = document.getElementById("c4-lost"); return el.style.visibility === "hidden" ? "" : el.innerText; }`,
+    );
+  check(lostLine() === "", "no forced-win line at the start");
+  // On a wide screen the line is wider than the board: it must not stretch it.
+  phone.viewport("1280x720x1,mobile,touch");
+  const shape = phone.eval<[number, number, number, string]>(`() => {
+    const r = document.getElementById("c4-board").getBoundingClientRect();
+    const hole = document.querySelector("#c4-board .c4-cell").getBoundingClientRect();
+    return [r.width, hole.width * 7 + 20, innerWidth, document.querySelector(".screen.on")?.id];
+  }`);
+  check(
+    shape[1] > 20 && Math.abs(shape[0] - shape[1]) < 2,
+    `the board keeps its shape on a wide screen (${shape.join(", ")})`,
+  );
+  phone.viewport(VIEWPORT);
 
   // Drop, then check the thinking state inside the page in one go: the
   // computer waits only 500 ms, too short to span several browser calls.
@@ -157,6 +178,10 @@ try {
   );
   await computerMoved();
   check(c4().moves.length === 2 && c4().turn === 0, "the computer answers, then it is Zoe's turn");
+  check(
+    c4().notes.length === 1 && c4().notes[0]!.positions > 0 && c4().notes[0]!.at === 1,
+    "the computer keeps the numbers behind its move",
+  );
   phone.screenshot("c4-solo-turn");
 
   // Zoe's second chip, then a reload while the computer is still thinking.
@@ -172,8 +197,10 @@ try {
   check(phone.visible("c4-resume"), "a solo game in progress offers to resume");
   phone.click("#c4-resume");
   await waitFor("resumed solo", () => phone.visible("c4-game"));
+  // The computer may already be dropping its chip by the time this looks.
+  const resumed = c4();
   check(
-    c4().thinking && c4().moves.join() === pending.moves.join(),
+    resumed.moves.join() === pending.moves.join() && resumed.turn === 1 && (resumed.thinking || resumed.busy),
     "the resumed game is on the computer's turn",
   );
   await computerMoved();
@@ -183,14 +210,39 @@ try {
     "after the resume, the computer plays the column its seed picked",
   );
 
+  let lostSeen = "";
   for (let s = c4(); s.winner === null && !s.draw; s = c4()) {
     const b = replay(s.starter, s.moves)!;
     await dropIn([0, 1, 2, 3, 4, 5, 6].find((c) => canDrop(b, c))!);
     await computerMoved();
+    if (!lostSeen && c4().winner === null && lostLine()) {
+      lostSeen = lostLine();
+      check(boardTop() === top, "the forced-win line takes no room from the board");
+      phone.screenshot("c4-solo-lost-line");
+    }
   }
+  check(
+    /^It can win in \d more moves?, whatever you play\.$/.test(lostSeen),
+    `once it has a forced win, the line under the board says so (${lostSeen})`,
+  );
   const lost = c4();
   check(lost.winner === 1 && lost.wins.join() === "0,1", "Hard beats a player who never looks");
   check(phone.text("#c4-result-title") === "Computer wins!", "the result names the computer");
+  check(
+    phone.visible("c4-recap") &&
+      phone.visible("c4-watch") &&
+      phone.text("#c4-stats").includes("Positions checked"),
+    "the recap counts the computer's search and offers to watch the ending",
+  );
+  phone.screenshot("c4-solo-recap");
+  phone.click("#c4-watch");
+  await waitFor("ending replayed", () =>
+    phone.eval<boolean>(`() => !document.getElementById("c4-result").classList.contains("away")`),
+  );
+  check(
+    phone.eval<number>(`() => document.querySelectorAll("#c4-board .c4-disc").length`) === lost.moves.length,
+    "the replay ends on the real final board",
+  );
   check(
     phone.text("#c4-pl-0 .c4-wins") === "0" && phone.text("#c4-pl-1 .c4-wins") === "1",
     "the score reads Zoe 0, Computer 1",
@@ -202,6 +254,7 @@ try {
   await waitFor("solo rematch", () => c4().starter === 1);
   await computerMoved();
   check(c4().moves.length === 1 && c4().turn === 0, "the computer opens the rematch");
+  check(!c4().notes.some((n) => n.at > 0), "the rematch starts a fresh recap");
   phone.click("#c4-leave");
   await waitFor("c4 home", () => phone.visible("c4-home"));
   check(phone.visible("c4-resume"), "the rematch can be resumed");

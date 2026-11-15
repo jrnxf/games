@@ -110,15 +110,13 @@ body[data-game="connect-four"] {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* The board sizes itself to whatever room the bar, the cards and the dock leave. */
+  container-type: size;
 }
 
 .c4-wrap {
-  /* Seven columns across the width, capped so the board and controls fit the height. */
-  --cell: min(
-    calc((100vw - 32px - var(--safe-left) - var(--safe-right) - 20px) / 7),
-    60px,
-    calc((100dvh - 340px) / 7.3)
-  );
+  /* Seven columns across the width, capped so the rail, the board and the line under it fit the height. */
+  --cell: min(calc((100cqw - 20px) / 7), 60px, calc((100cqh - 30px - var(--under, 0px)) / 7.2));
   margin: 0 auto;
 }
 
@@ -415,6 +413,187 @@ body[data-game="connect-four"] {
   gap: 10px;
 }
 
+/* ---------- solo: the computer's forced win, and its recap ---------- */
+
+.c4-lost,
+.c4-recap {
+  display: none;
+}
+
+/* A line under the board, there all game so the board never moves. */
+.c4-solo {
+  --under: 30px;
+}
+
+.c4-solo .c4-wrap {
+  position: relative;
+  padding-bottom: var(--under);
+}
+
+.c4-solo .c4-lost {
+  display: block;
+  /* As wide as the play area, wider than a small board, but out of the flow so the board keeps its own width. */
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 100cqw;
+  height: var(--under);
+  transform: translateX(-50%);
+  padding: 10px 8px 0;
+  color: var(--p2);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The recap: the result as a sheet across the bottom, with the computer's
+ * numbers. It takes the dock and the room of the line under the board, never
+ * the board's, so the winning four stay in sight.
+ */
+.c4-solo.c4-over .c4-dock {
+  margin-top: calc(-1 * var(--under));
+}
+
+.c4-solo .c4-result {
+  position: relative;
+  z-index: 4;
+  gap: 10px;
+  margin: 0 calc(-16px - var(--safe-right)) 0 calc(-16px - var(--safe-left));
+  padding: 16px calc(18px + var(--safe-right)) 18px calc(18px + var(--safe-left));
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.35);
+  animation: c4-sheet 0.35s cubic-bezier(0.3, 0.7, 0.4, 1);
+  transition: transform 0.35s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.c4-solo .c4-result.away {
+  transform: translateY(110%);
+}
+
+@keyframes c4-sheet {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.c4-solo .c4-result h2 {
+  padding-right: 150px;
+  text-align: left;
+}
+
+.c4-solo .c4-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.c4-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.c4-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.c4-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.c4-stats div:first-child dd {
+  color: var(--p2);
+}
+
+.c4-spark {
+  height: 30px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.c4-spark i {
+  flex: 1;
+  height: var(--h);
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--p2) 40%, transparent);
+}
+
+.c4-spark i.peak {
+  background: var(--p2);
+}
+
+.c4-spark i.saw {
+  background: #5fd39a;
+}
+
+.c4-spark-key {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.c4-saw {
+  color: #5fd39a;
+}
+
+/* Sits in the title's row, so the sheet stays short. */
+.c4-watch {
+  position: absolute;
+  top: 18px;
+  right: calc(18px + var(--safe-right));
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #5fd39a;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* The replay's chips carry their number. */
+.c4-disc[data-n]::before {
+  content: attr(data-n);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: calc(var(--cell) * 0.3);
+  font-weight: 900;
+}
+
+.c4-disc.fresh {
+  animation: c4-in 0.25s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+@keyframes c4-in {
+  from {
+    transform: translateY(calc(var(--cell) * -1.5));
+    opacity: 0;
+  }
+}
+
 /* ---------- online ---------- */
 
 /* The your-turn alert drops in from the top of the play area, as golf's does. */
@@ -483,6 +662,7 @@ body[data-game="connect-four"] {
 @media (prefers-reduced-motion: reduce) {
   .c4-hover .c4-disc,
   .c4-disc.win,
+  .c4-disc.fresh,
   .c4-dots i {
     animation: none;
   }

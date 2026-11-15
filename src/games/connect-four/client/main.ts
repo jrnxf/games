@@ -4,7 +4,9 @@
 // there, and tapping the aimed column again drops. Offline, the game saves
 // after every move, so a reload or a trip to the menu picks up where it left
 // off, the computer's pending move included. Online, the host on the server
-// holds the game (core/host.ts) and this phone draws what it says.
+// holds the game (core/host.ts) and this phone draws what it says. In solo,
+// a line under the board says when the computer has a forced win, and the
+// result recaps its game.
 
 import "./styles.css";
 import screens from "./screens.html?raw";
@@ -14,10 +16,11 @@ import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
 import type { GameSession } from "../../../shell/session.ts";
 import { store } from "../../../shell/storage.ts";
-import { LEVELS, computerMove, newSeed, type Level } from "../core/ai.ts";
+import { LEVELS, newSeed, think, type Level } from "../core/ai.ts";
 import {
   COLS,
   ROWS,
+  at,
   canDrop,
   drop,
   isOver,
@@ -51,6 +54,16 @@ interface Saved {
   /** Solo only: the computer's level and the seed its moves come from. */
   level?: Level;
   seed?: number;
+  /** Solo only: the numbers behind each of the computer's moves, for the recap. */
+  notes?: Note[];
+}
+
+/** One of the computer's moves, in numbers: `at` is how many chips were down before it. */
+interface Note {
+  at: number;
+  positions: number;
+  ms: number;
+  win: number | null;
 }
 
 let solo = false;
@@ -67,6 +80,9 @@ let gameId = 0;
 /** True on the computer's turn: input waits until its chip has landed. */
 let thinking = false;
 let thinkTimer = 0;
+/** Solo: the numbers behind each of the computer's moves this game, and the timer of a replay of the ending. */
+let notes: Note[] = [];
+let replayTimer = 0;
 
 /** Online: the party's channel for this game, and this phone's seat (red is 0, yellow 1). */
 let channel: Channel<FourServerMessage, FourClientMessage> | null = null;
@@ -118,12 +134,12 @@ function persist() {
   // Online, the game lives on the server.
   if (channel) return;
   const saved: Saved = { names, starter: board.starter, moves: board.moves, wins };
-  if (solo) Object.assign(saved, { level, seed });
+  if (solo) Object.assign(saved, { level, seed, notes });
   save(saveKey(), JSON.stringify(saved));
 }
 
 /** The saved game, if it is intact. */
-function savedGame(): (Saved & { board: Board; seed: number }) | null {
+function savedGame(): (Saved & { board: Board; seed: number; notes: Note[] }) | null {
   const s = loadJson<Saved>(saveKey());
   if (!s || !Array.isArray(s.names) || !Array.isArray(s.moves) || !Array.isArray(s.wins)) return null;
   if (s.starter !== 0 && s.starter !== 1) return null;
@@ -132,6 +148,14 @@ function savedGame(): (Saved & { board: Board; seed: number }) | null {
   if (!b) return null;
   const n = (i: 0 | 1) => cleanName(String(s.names[i] ?? ""), DEFAULT_NAMES[i]);
   const w = (i: 0 | 1) => Math.max(0, Math.floor(Number(s.wins[i]) || 0));
+  // Notes are for show: a bad one is dropped, never the game.
+  const fine = (n: Note) =>
+    Number.isInteger(n?.at) &&
+    n.at >= 0 &&
+    n.at < s.moves.length &&
+    Number.isFinite(n.positions) &&
+    Number.isFinite(n.ms) &&
+    (n.win === null || Number.isInteger(n.win));
   return {
     names: [n(0), n(1)],
     starter: s.starter,
@@ -139,6 +163,7 @@ function savedGame(): (Saved & { board: Board; seed: number }) | null {
     wins: [w(0), w(1)],
     level: s.level,
     seed: s.seed ?? 0,
+    notes: Array.isArray(s.notes) ? s.notes.filter(fine) : [],
     board: b,
   };
 }
@@ -149,14 +174,20 @@ function cellSize(): number {
   return cells[0]!.getBoundingClientRect().width;
 }
 
-function disc(seat: Seat, win = false): string {
-  return `<div class="c4-disc s${seat}${win ? " win" : ""}"></div>`;
+function disc(seat: Seat, win = false, n = 0, fresh = false): string {
+  const cls = `c4-disc s${seat}${win ? " win" : ""}${fresh ? " fresh" : ""}`;
+  return `<div class="${cls}"${n ? ` data-n="${n}"` : ""}></div>`;
 }
 
-function drawBoard() {
-  const line = new Set(board.line);
-  board.cells.forEach((seat, i) => {
-    cells[i]!.innerHTML = seat === null ? "" : disc(seat, line.has(i));
+/** Draws `b` on the board. Chips from number `numbered` on show their number, and the newest drops in. */
+function drawBoard(b = board, numbered = 0) {
+  const line = new Set(b.line);
+  const chip = Array<number>(ROWS * COLS).fill(0);
+  const height = Array<number>(COLS).fill(0);
+  b.moves.forEach((c, i) => (chip[at(ROWS - 1 - height[c]!++, c)] = i + 1));
+  b.cells.forEach((seat, i) => {
+    const n = numbered && chip[i]! >= numbered ? chip[i]! : 0;
+    cells[i]!.innerHTML = seat === null ? "" : disc(seat, line.has(i), n, n > 0 && n === b.moves.length);
   });
 }
 
@@ -223,8 +254,12 @@ function drawPlayers() {
         ? `Waiting for ${names[waitFor]}`
         : "Connecting";
   }
+  const game = $("c4-game");
+  game.classList.toggle("c4-solo", solo);
+  game.classList.toggle("c4-over", over);
   $("c4-result").hidden = !over;
   if (over) drawResult();
+  drawLost();
 }
 
 /** The end of a game: who won, and online, who wants a rematch. */
@@ -243,6 +278,7 @@ function drawResult() {
   note.hidden = !channel;
   note.style.visibility = asked ? "" : "hidden";
   note.textContent = asked ? `${friend} wants a rematch` : "\u00a0";
+  if (solo) drawRecap();
 }
 
 function draw() {
@@ -270,6 +306,92 @@ async function play() {
   if (board.winner !== null) wins[board.winner] += 1;
   persist();
   takeTurn();
+}
+
+// ---------- the computer's thinking ----------
+
+const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+const fmtMs = (ms: number) =>
+  ms < 0.01 ? "<0.01 ms" : `${ms < 0.1 ? ms.toFixed(2) : ms < 10 ? ms.toFixed(1) : Math.round(ms)} ms`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/**
+ * Once the computer has a forced win, the line under the board says so on the
+ * player's turn. It never guesses at the player's move: it is true whatever they play.
+ */
+function drawLost() {
+  const last =
+    solo && !isOver(board) && board.turn !== COMPUTER
+      ? notes.find((x) => x.at === board.moves.length - 1)
+      : null;
+  const win = last?.win ?? null;
+  const el = $("c4-lost");
+  // Hidden, it keeps its room, so the board never moves.
+  const show = win !== null && win >= 3;
+  el.style.visibility = show ? "" : "hidden";
+  el.textContent = show ? `It can win in ${plural((win! - 1) / 2, "more move")}, whatever you play.` : "";
+}
+
+/** The recap under the result: the computer's game in numbers. */
+function drawRecap() {
+  const ended = notes.filter((x) => x.at < board.moves.length);
+  $("c4-recap").hidden = ended.length === 0;
+  if (ended.length === 0) return;
+  const total = ended.reduce((a, x) => a + x.positions, 0);
+  const ms = ended.reduce((a, x) => a + x.ms, 0);
+  const longest = ended.reduce((a, x) => (x.ms > a.ms ? x : a));
+  // The first move of the run of forced wins that ended the game.
+  let saw = ended.length;
+  if (board.winner === COMPUTER) while (saw > 0 && ended[saw - 1]!.win !== null) saw--;
+  const early = saw < ended.length ? board.moves.length - (ended[saw]!.at + 1) : 0;
+  const rows: [string, string][] = [["Positions checked", fmt(total)]];
+  if (early > 0) rows.push(["Saw its win coming", `${plural(early, "chip")} early`]);
+  rows.push(["Longest think", `chip ${longest.at + 1} · ${fmtMs(longest.ms)}`]);
+  rows.push(["Time thinking, whole game", fmtMs(ms)]);
+  $("c4-stats").innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  const peak = Math.max(...ended.map((x) => x.positions), 1);
+  $("c4-spark").innerHTML = ended
+    .map((x, i) => {
+      const cls = x.positions === peak ? "peak" : i >= saw ? "saw" : "";
+      return `<i class="${cls}" style="--h: ${Math.max(6, (x.positions / peak) * 100)}%"></i>`;
+    })
+    .join("");
+  $("c4-spark-label").textContent = `its ${plural(ended.length, "move")}`;
+  $("c4-saw-key").hidden = early === 0;
+  const watch = $("c4-watch");
+  watch.hidden = early === 0;
+  watch.dataset.from = String(early > 0 ? ended[saw]!.at : 0);
+}
+
+/** Hides the recap and replays the real last chips, from the move where the computer saw its win. */
+function watchEnding(from: number) {
+  clearTimeout(replayTimer);
+  const final = board;
+  const sheet = $("c4-result");
+  sheet.classList.add("away");
+  let k = from;
+  drawBoard(replay(final.starter, final.moves.slice(0, k))!, from + 1);
+  const wait = (ms: number) => (reducedMotion.matches ? 0 : ms);
+  const step = () => {
+    if (board !== final) return;
+    k++;
+    const done = k === final.moves.length;
+    drawBoard(replay(final.starter, final.moves.slice(0, k))!, from + 1);
+    toast(
+      k === from + 1 ? `Chip ${k}: it sees a forced win` : done ? `Chip ${k}: four in a row` : `Chip ${k}`,
+      COMPUTER,
+    );
+    replayTimer = window.setTimeout(
+      done ? () => sheet.classList.remove("away") : step,
+      wait(done ? 1600 : k === from + 1 ? 1100 : 550),
+    );
+  };
+  replayTimer = window.setTimeout(step, wait(500));
+}
+
+function stopReplay() {
+  clearTimeout(replayTimer);
+  $("c4-result").classList.remove("away");
 }
 
 /** Animates the current player's chip falling into column `c`, then puts it on the board. False when a new game started meanwhile. */
@@ -321,7 +443,11 @@ function takeTurn() {
   const still = () => board === before && $("c4-game").classList.contains("on");
   thinkTimer = window.setTimeout(() => {
     if (!still()) return;
-    aim(computerMove(board, level, seed));
+    const t = think(board, level, seed);
+    // Kept for the recap and the line under the board.
+    const at = board.moves.length;
+    notes = [...notes.filter((x) => x.at !== at), { at, positions: t.positions, ms: t.ms, win: t.win }];
+    aim(t.col);
     thinkTimer = window.setTimeout(() => {
       if (!still()) return;
       thinking = false;
@@ -337,6 +463,7 @@ function stopThinking() {
 
 function startGame(next: Board) {
   gameId++;
+  stopReplay();
   board = next;
   col = 3;
   busy = false;
@@ -348,6 +475,7 @@ function startGame(next: Board) {
 /** A fresh game with the same players. Whoever went second last time starts. */
 function rematch() {
   seed = newSeed();
+  notes = [];
   startGame(newBoard((1 - board.starter) as Seat));
   persist();
 }
@@ -387,6 +515,7 @@ $("c4-form").addEventListener("submit", (e) => {
   const saved = ourGame();
   wins = saved ? saved.wins : [0, 0];
   seed = newSeed();
+  notes = [];
   startGame(newBoard(nextStarter(saved)));
   persist();
 });
@@ -396,6 +525,7 @@ $("c4-resume").addEventListener("click", () => {
   if (!saved) return goHome();
   wins = saved.wins;
   seed = saved.seed;
+  notes = saved.notes;
   startGame(saved.board);
 });
 
@@ -498,6 +628,9 @@ $("c4-again").addEventListener("click", () => (channel ? channel.send({ t: "rema
 $("c4-left").addEventListener("click", () => steer(col - 1));
 $("c4-right").addEventListener("click", () => steer(col + 1));
 $("c4-drop").addEventListener("click", () => void play());
+$("c4-watch").addEventListener("click", (e) =>
+  watchEnding(Number((e.currentTarget as HTMLElement).dataset.from)),
+);
 
 addEventListener("resize", () => {
   if ($("c4-game").classList.contains("on")) aim(col);
@@ -532,6 +665,7 @@ addEventListener("keydown", (e) => {
     locked: locked(),
     rematch: latest?.rematch ?? null,
     ghost: $("c4-hover").classList.contains("ghost"),
+    notes,
   }),
 };
 
@@ -557,6 +691,7 @@ export function open(_rest: string, session: GameSession): void {
 export function close(): void {
   // Only the computer's wait runs in the background; the game is saved after every move.
   stopThinking();
+  stopReplay();
   // Online, the game stays on the server; a chip still falling is dropped with it.
   channel = null;
   latest = null;
