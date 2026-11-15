@@ -222,7 +222,7 @@ try {
     }
   }
   check(
-    /^It can win in \d more moves?, whatever you play\.$/.test(lostSeen),
+    /^I can win in \d more moves?, no matter what you play\.$/.test(lostSeen),
     `once it has a forced win, the line under the board says so (${lostSeen})`,
   );
   const lost = c4();

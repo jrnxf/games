@@ -439,9 +439,10 @@ body[data-game="connect-four"] {
   width: 100cqw;
   height: var(--under);
   transform: translateX(-50%);
-  padding: 10px 8px 0;
+  padding: 10px 4px 0;
   color: var(--p2);
-  font-size: 13px;
+  /* A little smaller on the narrowest phones, so the whole sentence fits. */
+  font-size: clamp(11px, 3.4cqw, 13px);
   font-weight: 700;
   line-height: 20px;
   text-align: center;
