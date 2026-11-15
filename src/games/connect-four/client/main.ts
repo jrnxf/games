@@ -329,7 +329,7 @@ function drawLost() {
   // Hidden, it keeps its room, so the board never moves.
   const show = win !== null && win >= 3;
   el.style.visibility = show ? "" : "hidden";
-  el.textContent = show ? `It can win in ${plural((win! - 1) / 2, "more move")}, whatever you play.` : "";
+  el.textContent = show ? `I can win in ${plural((win! - 1) / 2, "more move")}, whatever you play.` : "";
 }
 
 /** The recap under the result: the computer's game in numbers. */
