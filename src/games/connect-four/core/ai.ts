@@ -40,20 +40,52 @@ export function rng(seed: number): () => number {
 /** A fresh seed for a new game. */
 export const newSeed = () => Math.floor(Math.random() * 4294967296);
 
+/** One move of the computer's, with the search behind it. */
+export interface Thought {
+  col: number;
+  /** How many positions the search scored. */
+  positions: number;
+  /** How long the search took, in milliseconds. */
+  ms: number;
+  /** Chips until it wins, counting `col`, when `col` forces a win within its depth. */
+  win: number | null;
+}
+
 /** The column the computer plays on `b` for the player on turn. The board must not be over. */
 export function computerMove(b: Board, level: Level, seed: number): number {
+  return think(b, level, seed).col;
+}
+
+/** The computer's move on `b`, with how much it searched and how long it took. The board must not be over. */
+export function think(b: Board, level: Level, seed: number): Thought {
   const legal = ORDER.filter((c) => canDrop(b, c));
   if (legal.length === 0) throw new Error("no legal move");
   // Each move gets its own stream, so the answer depends only on the position.
   const rand = rng(seed ^ Math.imul(b.moves.length + 1, 0x9e3779b1));
   const { depth, mistake } = LEVELS[level];
-  if (rand() < mistake) return legal[Math.floor(rand() * legal.length)]!;
-  const best = bestColumns(b, depth);
-  return best[Math.floor(rand() * best.length)]!;
+  // The search runs even for a move thrown away, so every move has its numbers.
+  // It draws nothing from the stream, so the moves are the same as without it.
+  const t0 = performance.now();
+  const found = search(b, depth);
+  const ms = performance.now() - t0;
+  const col =
+    rand() < mistake
+      ? legal[Math.floor(rand() * legal.length)]!
+      : found.best[Math.floor(rand() * found.best.length)]!;
+  return {
+    col,
+    positions: found.positions,
+    ms,
+    win: found.best.includes(col) ? winIn(found.top, depth) : null,
+  };
 }
 
 /** Every column that scores best at `depth` for the player on turn, in centre-first order. */
 export function bestColumns(b: Board, depth: number): number[] {
+  return search(b, depth).best;
+}
+
+function search(b: Board, depth: number): { best: number[]; top: number; positions: number } {
   const s = new Search(b);
   let top = -Infinity;
   let best: number[] = [];
@@ -66,7 +98,12 @@ export function bestColumns(b: Board, depth: number): number[] {
       best = [c];
     } else if (score === top) best.push(c);
   }
-  return best;
+  return { best, top, positions: s.positions };
+}
+
+/** Chips until the win, counting the scored chip, when a score at `depth` is a forced win. */
+export function winIn(score: number, depth: number): number | null {
+  return score >= WIN ? depth + 1 - (score - WIN) : null;
 }
 
 // ---------- search ----------
@@ -111,6 +148,8 @@ class Search {
   /** The position's score for seat 0. */
   private total = 0;
   private filled = 0;
+  /** Positions scored so far, for showing how much was searched. */
+  positions = 0;
 
   constructor(b: Board) {
     for (let c = 0; c < COLS; c++) {
@@ -125,6 +164,7 @@ class Search {
   /** `seat` plays `col`; the result is from `seat`'s side, higher is better. */
   score(seat: Seat, col: number, depth: number, alpha: number, beta: number): number {
     let score: number;
+    this.positions += 1;
     // A sooner win scores higher, a later loss less badly.
     if (this.place(seat, col)) score = WIN + depth;
     else if (this.filled === ROWS * COLS) score = 0;

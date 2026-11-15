@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { LEVELS, bestColumns, computerMove, rng, type Level } from "../../src/games/connect-four/core/ai.ts";
+import {
+  LEVELS,
+  bestColumns,
+  computerMove,
+  rng,
+  think,
+  winIn,
+  type Level,
+} from "../../src/games/connect-four/core/ai.ts";
 import {
   canDrop,
   drop,
@@ -127,5 +135,24 @@ describe("connect four computer", () => {
     const t = performance.now();
     computerMove(p, "hard", 3);
     expect(performance.now() - t).toBeLessThan(150);
+  });
+
+  it("thinks the same move it plays, with its numbers", () => {
+    const p = play([6, 3, 3, 3, 6]);
+    for (const seed of [1, 2, 3]) {
+      const t = think(p, "hard", seed);
+      expect(t.col).toBe(computerMove(p, "hard", seed));
+      expect(t.positions).toBe(51674);
+      expect(t.ms).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("counts the chips to a forced win, its own chip included", () => {
+    const p = play([0, 6, 1, 6, 4, 6, 0]);
+    const t = think(p, "hard", 1);
+    expect(t.col).toBe(6);
+    expect(t.win).toBe(1);
+    expect(think(newBoard(0), "hard", 1).win).toBeNull();
+    expect(winIn(5, 9)).toBeNull();
   });
 });

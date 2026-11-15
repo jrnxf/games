@@ -82,6 +82,11 @@ export class Browser {
     this.settle();
   }
 
+  /** Sizes the page, for example "1280x720x1" for a laptop. */
+  viewport(size: string): void {
+    this.axi(["emulate", "--viewport", size]);
+  }
+
   /** Waits for a screen to show: a game's code loads after the page does. */
   settle(): void {
     this.run(`await page.eval(async () => {
