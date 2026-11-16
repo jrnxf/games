@@ -7,7 +7,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 ## 1. Reversi (`reversi`)
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/reversi.test.ts`)
-- [ ] Computer: alpha-beta, positional + mobility evaluation, depth by level, capped by time + tests
+- [x] Computer: alpha-beta, positional + mobility evaluation, depth by level, capped by positions + tests (`core/ai.ts`, `tests/unit/reversi-ai.test.ts`)
 - [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score
 - [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump, host tests, online client
 - [ ] E2E: `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
@@ -33,4 +33,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Reversi board: seat colours are fixed, and the starter holds cells (3,4) and (4,3), so the opening is the same shape whoever starts. A pass is never stored in `moves`. `play` keeps the turn with the mover and sets `passed`.
 
-Next: the Reversi computer (`src/games/reversi/core/ai.ts`), modelled on `src/games/connect-four/core/ai.ts`.
+- Reversi computer: `think(board, level, seed)` returns `{ cell, positions, ms, depth }`. The cap is a position budget, not a clock, so a move is a pure function of the board, the level and the seed. Hard scores 40,000 positions at most, about 55 ms on a desktop. Write this choice in `docs/decisions.md` at the README step.
+
+Next: the Reversi client (`src/games/reversi/info.ts` and `client/`), solo and pass & play, modelled on `src/games/connect-four/client/`. Add `info` to `GAMES`.
