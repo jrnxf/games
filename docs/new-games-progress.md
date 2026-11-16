@@ -45,7 +45,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 ## 5. Ultimate Tic-Tac-Toe (`ultimate-tic-tac-toe`)
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
-- [ ] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`)
+- [x] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`, `tests/unit/ultimate-tic-tac-toe-ai.test.ts`)
 - [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the boards you may play in highlighted
 - [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests, online client code
 - [ ] E2E: `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
@@ -104,4 +104,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Ultimate Tic-Tac-Toe board: a cell is `board * 9 + spot` (`at`, `boardOf`, `spotOf`), with boards and spots both row-major. `won` holds the seat per small board (null for a board in play and for a full board nobody won), and `target` is the small board the player on turn must play in (null: any open board). A won small board takes no more marks, even with empty spots. The game is a draw when no board is open and nobody has a line: the number of boards held does not count. `LINES` and `lineOf` serve the spots and the grid of boards. `openBoards(b)` is the list to highlight. Fixtures are in `tests/unit/ultimate-tic-tac-toe-games.ts` (`SENT_TO_WON`, `SENT_TO_FULL`, `WIN`, `DRAW`). Write the draw rule in `docs/decisions.md` at the README step.
 
-Next: the Ultimate Tic-Tac-Toe computer (`src/games/ultimate-tic-tac-toe/core/ai.ts`): Monte Carlo tree search, playouts by level, capped by time, with tests.
+- Ultimate Tic-Tac-Toe computer: `think(board, level, seed, ms = LEVELS[level].ms)` returns `{ cell, playouts, ms, capped }`. It has two caps: playouts by level (Easy 40, Medium 600, Hard 12,000) and a clock of 250 ms. Hard takes about 50 ms at most on a desktop, so the clock stops it on slow phones only. A move is a pure function of the board, the level and the seed while the clock does not cut the search short: the tests pass `Infinity` as `ms` for that. Before the search, the computer takes a win in one and leaves out every mark that hands the other player a win in one, and a playout takes a game-winning mark when there is one. The client can call `think` on the main thread. `ai.ts` must stay type-strippable (no constructor parameter properties), because Node runs the TypeScript directly. Write the two caps and the root filter in `docs/decisions.md` at the README step.
+
+Next: the Ultimate Tic-Tac-Toe client (`info.ts`, `client/`, added to `GAMES`): solo and pass & play, save and running score, the boards you may play in highlighted.
