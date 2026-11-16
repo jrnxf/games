@@ -1,0 +1,73 @@
+<!-- Reversi screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="rv-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Reversi</span>
+  </div>
+  <form class="pad stack" id="rv-form">
+    <p class="lead" id="rv-lead"></p>
+    <div class="rv-pl on">
+      <i class="rv-mini s0"></i>
+      <div><b class="rv-name" id="rv-name-0"></b><small class="rv-sub" id="rv-sub-0"></small></div>
+    </div>
+    <div class="rv-pl on">
+      <i class="rv-mini s1"></i>
+      <div><b class="rv-name" id="rv-name-1"></b><small class="rv-sub" id="rv-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="rv-start">Start</button>
+    <button class="btn outline" type="button" id="rv-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Board -->
+<section class="screen" id="rv-game" data-screen>
+  <div class="bar">
+    <button class="back" id="rv-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Reversi</span>
+    <!-- Games won, once there is one. -->
+    <span class="rv-tally" id="rv-tally" aria-label="Games won"></span>
+  </div>
+  <div class="rv-players">
+    <div class="rv-pl" id="rv-pl-0">
+      <i class="rv-mini s0"></i>
+      <div><b class="rv-name"></b><small class="rv-sub"></small></div>
+      <span class="rv-count" aria-label="Discs"></span>
+    </div>
+    <div class="rv-pl right" id="rv-pl-1">
+      <i class="rv-mini s1"></i>
+      <div><b class="rv-name"></b><small class="rv-sub"></small></div>
+      <span class="rv-count" aria-label="Discs"></span>
+    </div>
+  </div>
+  <div class="rv-play">
+    <div class="rv-banner" id="rv-banner" role="status" hidden></div>
+    <div class="rv-toast" id="rv-toast" role="status"></div>
+    <div class="rv-board" id="rv-board" role="grid" aria-label="Board"></div>
+  </div>
+  <div class="rv-dock">
+    <div class="rv-status" id="rv-status">
+      <p role="status">
+        <span id="rv-status-text"></span
+        ><span class="rv-dots" id="rv-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </p>
+    </div>
+    <div class="rv-result" id="rv-result" hidden>
+      <h2 id="rv-result-title" role="status"></h2>
+      <p class="rv-why" id="rv-why"></p>
+      <p class="rv-note" id="rv-note" hidden></p>
+      <!-- Solo: the computer's game in numbers. -->
+      <dl class="rv-stats" id="rv-stats"></dl>
+      <div class="rv-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="rv-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</section>

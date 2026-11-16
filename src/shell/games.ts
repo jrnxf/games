@@ -1,8 +1,9 @@
 // The games on the menu, in menu order. Adding a game: make a folder in
-// src/games with an info.ts like these two, then list it here.
+// src/games with an info.ts like these, then list it here.
 
 import connectFour from "../games/connect-four/info.ts";
 import miniGolf from "../games/mini-golf/info.ts";
+import reversi from "../games/reversi/info.ts";
 import type { GameSession, Mode } from "./session.ts";
 
 /** What a game's code exports. The shell loads it the first time the game opens. */
@@ -41,7 +42,7 @@ export interface GameInfo {
   load(): Promise<GameModule>;
 }
 
-export const GAMES: readonly GameInfo[] = [miniGolf, connectFour];
+export const GAMES: readonly GameInfo[] = [miniGolf, connectFour, reversi];
 
 /** Why `info` can't run in `mode`, in a few words, or null when it can. */
 export function unsupported(info: GameInfo, mode: Mode): string | null {

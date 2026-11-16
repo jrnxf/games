@@ -4,7 +4,7 @@
 // game's host (see host.ts).
 
 /** Bump whenever this protocol, any game's messages, golf's physics or holes change, so a stale phone is refused instead of desyncing. */
-export const PROTOCOL = 4;
+export const PROTOCOL = 5;
 
 /** Party codes avoid vowels (no accidental words) and look-alikes like 0/O and 1/I. */
 export const CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ23456789";

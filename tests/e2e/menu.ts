@@ -86,7 +86,10 @@ try {
   phone.click("#start-go");
   await waitFor("menu", () => phone.visible("games"));
   check(phone.eval<string>("() => location.pathname") === "/", "the menu is at /");
-  check(phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 2, "two game tiles");
+  check(
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 3,
+    "three game tiles",
+  );
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
     phone.eval<number>(`() => document.querySelectorAll("#tiles .tile.off").length`) === 0 &&
@@ -274,7 +277,7 @@ try {
   check(phone.text("#menu-chip-text") === "Pass & play · Zoe & Kai", "the chip shows both players");
   check(
     phone.eval<number>(`() => document.querySelectorAll("#tiles .tile.off").length`) === 0,
-    "both games play",
+    "every game plays",
   );
   phone.screenshot("menu");
 

@@ -3,9 +3,11 @@
 
 import { fourHost } from "../src/games/connect-four/core/host.ts";
 import { golfHost } from "../src/games/mini-golf/core/host.ts";
+import { reversiHost } from "../src/games/reversi/core/host.ts";
 import type { Hosts } from "../src/party/host.ts";
 
 export const HOSTS: Hosts = {
   "mini-golf": golfHost,
   "connect-four": fourHost,
+  reversi: reversiHost,
 };
