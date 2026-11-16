@@ -6,6 +6,7 @@ import dotsAndBoxes from "../games/dots-and-boxes/info.ts";
 import mancala from "../games/mancala/info.ts";
 import miniGolf from "../games/mini-golf/info.ts";
 import reversi from "../games/reversi/info.ts";
+import seaBattle from "../games/sea-battle/info.ts";
 import type { GameSession, Mode } from "./session.ts";
 
 /** What a game's code exports. The shell loads it the first time the game opens. */
@@ -44,7 +45,7 @@ export interface GameInfo {
   load(): Promise<GameModule>;
 }
 
-export const GAMES: readonly GameInfo[] = [miniGolf, connectFour, reversi, dotsAndBoxes, mancala];
+export const GAMES: readonly GameInfo[] = [miniGolf, connectFour, reversi, dotsAndBoxes, mancala, seaBattle];
 
 /** Why `info` can't run in `mode`, in a few words, or null when it can. */
 export function unsupported(info: GameInfo, mode: Mode): string | null {

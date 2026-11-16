@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GAMES, blurb, refusal, unsupported, type GameInfo } from "../../src/shell/games.ts";
 
-// Every real game runs in every mode today, so the menu's "can't" paths only
-// run here, on a made-up game.
+// Every real game but one runs in every mode today, so the menu's "can't"
+// paths mostly run here, on a made-up game.
 const chess: GameInfo = {
   id: "chess",
   title: "Chess",
@@ -27,6 +27,7 @@ describe("menu modes", () => {
   it("says nothing against a mode a game supports", () => {
     expect(refusal(chess, "pass-and-play")).toBeNull();
     expect(blurb(chess, "pass-and-play")).toBe("2 players · one phone");
-    for (const info of GAMES) expect(refusal(info, "online")).toBeNull();
+    // Sea Battle's online host is not written yet: drop this filter when it is.
+    for (const info of GAMES.filter((g) => g.id !== "sea-battle")) expect(refusal(info, "online")).toBeNull();
   });
 });

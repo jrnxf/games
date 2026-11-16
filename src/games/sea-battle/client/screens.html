@@ -1,0 +1,113 @@
+<!-- Sea Battle screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="sb-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Sea Battle</span>
+  </div>
+  <form class="pad stack" id="sb-form">
+    <p class="lead" id="sb-lead"></p>
+    <div class="sb-pl s0 on">
+      <i class="sb-mini s0"></i>
+      <div><b class="sb-name" id="sb-name-0"></b><small class="sb-sub" id="sb-sub-0"></small></div>
+    </div>
+    <div class="sb-pl s1 on">
+      <i class="sb-mini s1"></i>
+      <div><b class="sb-name" id="sb-name-1"></b><small class="sb-sub" id="sb-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="sb-start">Start</button>
+    <button class="btn outline" type="button" id="sb-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Placing a fleet -->
+<section class="screen" id="sb-place" data-screen>
+  <div class="bar">
+    <button class="back" id="sb-place-back" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Sea Battle</span>
+  </div>
+  <div class="sb-place-head">
+    <i class="sb-mini" id="sb-place-flag"></i>
+    <h2 id="sb-place-title"></h2>
+  </div>
+  <div class="sb-play">
+    <div class="sb-sea" id="sb-yard" role="group" aria-label="Your water"></div>
+  </div>
+  <div class="sb-dock">
+    <p class="sb-hint" id="sb-hint" role="status"></p>
+    <div class="sb-row">
+      <button class="btn outline" type="button" id="sb-random">Random</button>
+      <button class="btn outline" type="button" id="sb-turn">Turn ship</button>
+    </div>
+    <button class="btn primary" type="button" id="sb-done">Ready</button>
+  </div>
+</section>
+
+<!-- Between players on one phone: nobody sees the other's fleet. -->
+<section class="screen" id="sb-pass" data-screen>
+  <div class="sb-cover">
+    <i class="sb-mini" id="sb-pass-flag"></i>
+    <h2 id="sb-pass-title"></h2>
+    <p id="sb-pass-sub"></p>
+    <button class="btn primary" type="button" id="sb-ready">I'm ready</button>
+  </div>
+</section>
+
+<!-- Board -->
+<section class="screen" id="sb-game" data-screen>
+  <div class="bar">
+    <button class="back" id="sb-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Sea Battle</span>
+    <!-- Games won, once there is one. -->
+    <span class="sb-tally" id="sb-tally" aria-label="Games won"></span>
+  </div>
+  <div class="sb-players">
+    <div class="sb-pl s0" id="sb-pl-0">
+      <i class="sb-mini s0"></i>
+      <div><b class="sb-name"></b><small class="sb-sub"></small></div>
+      <span class="sb-fleet" role="img"></span>
+    </div>
+    <div class="sb-pl s1 right" id="sb-pl-1">
+      <i class="sb-mini s1"></i>
+      <div><b class="sb-name"></b><small class="sb-sub"></small></div>
+      <span class="sb-fleet" role="img"></span>
+    </div>
+  </div>
+  <div class="sb-play">
+    <div class="sb-sea" id="sb-sea" role="group"></div>
+  </div>
+  <div class="sb-dock">
+    <div class="sb-deck" id="sb-deck">
+      <!-- The viewer's own water, small: their ships and the shots that fell there. -->
+      <div class="sb-own">
+        <small id="sb-own-title"></small>
+        <div class="sb-sea small" id="sb-own" role="img"></div>
+      </div>
+      <div class="sb-act">
+        <p class="sb-status" id="sb-status" role="status">
+          <span id="sb-status-text"></span
+          ><span class="sb-dots" id="sb-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </p>
+        <button class="btn primary" type="button" id="sb-fire">Fire</button>
+      </div>
+    </div>
+    <div class="sb-result" id="sb-result" hidden>
+      <h2 id="sb-result-title" role="status"></h2>
+      <p class="sb-why" id="sb-why"></p>
+      <!-- Solo: both players' game in numbers. -->
+      <dl class="sb-stats" id="sb-stats"></dl>
+      <div class="sb-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="sb-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</section>

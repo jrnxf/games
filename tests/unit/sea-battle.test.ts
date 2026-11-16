@@ -8,13 +8,16 @@ import {
   canFire,
   canFireAt,
   cellsOf,
+  clamped,
   fire,
   fits,
   hits,
   newBoard,
+  placed,
   randomFleet,
   replay,
   shipAt,
+  turned,
   validFleet,
   type Board,
   type Fleet,
@@ -280,5 +283,55 @@ describe("sea battle board", () => {
       expect(hits(b, (1 - b.winner!) as Seat)).toBeLessThan(DECKS);
       expect(replay(b.starter, b.fleets, b.shots)).toEqual(b);
     }
+  });
+});
+
+describe("sea battle placement", () => {
+  it("moves a ship to open water, and refuses a place on another ship or off the grid", () => {
+    const moved = placed(ROWS, 4, { cell: at(9, 8), len: 2, down: false });
+    expect(moved).not.toBeNull();
+    expect(moved![4]).toEqual({ cell: at(9, 8), len: 2, down: false });
+    expect(moved!.slice(0, 4)).toEqual(ROWS.slice(0, 4));
+    expect(ROWS[4]).toEqual({ cell: at(8, 0), len: 2, down: false });
+    expect(placed(ROWS, 4, { cell: at(6, 2), len: 2, down: false })).toBeNull();
+    expect(placed(ROWS, 4, { cell: at(9, 9), len: 2, down: false })).toBeNull();
+    expect(placed(ROWS, 4, { cell: at(9, 8), len: 3, down: false })).toBeNull();
+  });
+
+  it("pulls a ship that would hang off the grid back onto it", () => {
+    expect(clamped(3, 8, 5, false)).toEqual({ cell: at(3, 5), len: 5, down: false });
+    expect(clamped(8, 3, 4, true)).toEqual({ cell: at(6, 3), len: 4, down: true });
+    expect(clamped(-2, -1, 3, false)).toEqual({ cell: at(0, 0), len: 3, down: false });
+    expect(clamped(12, 12, 2, true)).toEqual({ cell: at(8, 9), len: 2, down: true });
+    expect(clamped(4, 4, 3, true)).toEqual({ cell: at(4, 4), len: 3, down: true });
+  });
+
+  it("turns a ship about its end where there is room", () => {
+    const lone = turned(ROWS, 4);
+    expect(lone![4]).toEqual({ cell: at(8, 0), len: 2, down: true });
+    expect(turned(lone!, 4)).toEqual(ROWS);
+  });
+
+  it("turns a ship into the nearest free place when its own is taken, and the fleet stays legal", () => {
+    // The 5 along row 0 can't run down column 0: the other ships lie across it.
+    const next = turned(ROWS, 0);
+    expect(next).not.toBeNull();
+    expect(validFleet(next!)).toBe(true);
+    expect(next![0]).toEqual({ cell: at(0, 4), len: 5, down: true });
+    expect(turned(COLUMNS, 0)![0]).toEqual({ cell: at(4, 5), len: 5, down: false });
+    for (let seed = 1; seed <= 50; seed++) {
+      let fleet = randomFleet(rng(seed));
+      for (let i = 0; i < FLEET.length; i++) {
+        const after = turned(fleet, i);
+        expect(after).not.toBeNull();
+        expect(validFleet(after!)).toBe(true);
+        expect(after![i]!.down).toBe(!fleet[i]!.down);
+        fleet = after!;
+      }
+    }
+  });
+
+  it("says so when a ship has nowhere to turn", () => {
+    expect(turned(ROWS, 9)).toBeNull();
   });
 });

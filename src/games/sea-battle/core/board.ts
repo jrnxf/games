@@ -122,6 +122,43 @@ export function randomFleet(rand: () => number): Fleet {
   return fleet;
 }
 
+/** `fleet` with ship `i` replaced by `ship`, or null when that leaves the grid or overlaps another ship. */
+export function placed(fleet: Fleet, i: number, ship: Ship): Fleet | null {
+  const next = fleet.map((old, j) => (j === i ? ship : old));
+  return validFleet(next) ? next : null;
+}
+
+/** A ship of `len` with its top or left end at `row`, `col`, pulled back onto the grid where it would hang off. */
+export function clamped(row: number, col: number, len: number, down: boolean): Ship {
+  const within = (n: number, max: number) => Math.max(0, Math.min(max, n));
+  const r = within(row, down ? SIZE - len : SIZE - 1);
+  const c = within(col, down ? SIZE - 1 : SIZE - len);
+  return { cell: at(r, c), len, down };
+}
+
+/**
+ * `fleet` with ship `i` turned from a row to a column or back. The ship keeps
+ * its top or left end where the grid and the other ships allow, and takes the
+ * nearest free place where they do not. Null when no place is free.
+ */
+export function turned(fleet: Fleet, i: number): Fleet | null {
+  const old = fleet[i];
+  if (!old) return null;
+  const row = Math.floor(old.cell / SIZE);
+  const col = old.cell % SIZE;
+  let best: Fleet | null = null;
+  let near = Infinity;
+  for (let cell = 0; cell < CELLS; cell++) {
+    const far = (Math.floor(cell / SIZE) - row) ** 2 + ((cell % SIZE) - col) ** 2;
+    if (far >= near) continue;
+    const next = placed(fleet, i, { cell, len: old.len, down: !old.down });
+    if (!next) continue;
+    best = next;
+    near = far;
+  }
+  return best;
+}
+
 const newSight = (): Sight => ({ marks: Array<Mark>(CELLS).fill(null), sunk: [] });
 
 /** A game ready for its first shot. Both fleets must be valid. */
