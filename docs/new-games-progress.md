@@ -19,7 +19,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Computer: plain rules on Easy and Medium, a search of safe lines and of the endgame on Hard, capped by positions + tests (`core/ai.ts`, `tests/unit/dots-and-boxes-ai.test.ts`)
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score
 - [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests (`tests/unit/dots-and-boxes-host.test.ts`), online client code
-- [ ] E2E: `tests/e2e/dots-and-boxes.ts`
+- [x] E2E: `tests/e2e/dots-and-boxes.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
 - [ ] README entry and `docs/decisions.md` section
 
 ## 3. Mancala (`mancala`)
@@ -50,4 +50,8 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Dots and Boxes client: ids and classes start with `db-`. Each line is a button with a diamond tap area (`clip-path`), from its two dots to the middle of the box on each side, so the diamonds tile the page and a tap draws the nearest line. A move has no busy wait: the new line and the closed boxes carry a `fresh` class that a later redraw keeps. The computer waits 500 ms, and 260 ms before each further line of an extra turn. The test hook is `window.__boxes.state()`, and line `i` is `document.querySelectorAll("#db-board .db-line")[i]`. Online has no dimmed pending choice, as in Reversi: one tap draws the line. Write the diamond tap area and this in `docs/decisions.md` at the README step.
 
-Next: the Dots and Boxes e2e (`tests/e2e/dots-and-boxes.ts` with solo, pass & play, offline and online parts, called from `menu.ts` and `online.ts`). Two phones have not yet played Dots and Boxes online. Then the README entry and the `docs/decisions.md` section.
+- Dots and Boxes online: in an extra turn a phone may draw its next line before the host has answered the last one. The host's answer then holds fewer lines than the phone's board. `settle` keeps the board when the answer is a longer prefix of it than the last answer (`heard`), and treats an answer that does not grow as a refused move. Write this in `docs/decisions.md` at the README step. Reversi has the same gap after a pass on a slow link (a second disc before the first answer shows a "Connection hiccup" toast). It is rare, because the discs must finish turning first, and it is not fixed yet.
+
+- Dots and Boxes e2e: `WHOLE` in `tests/e2e/dots-and-boxes.ts` is `GIFT` plus every other line in line order, and the second player wins 15 to 10. `rushOut` taps each run of lines by one player inside that player's page.
+
+Next: the Dots and Boxes README entry and `docs/decisions.md` section (also name Dots and Boxes in the README's Test section). Then Mancala, from its core rules.

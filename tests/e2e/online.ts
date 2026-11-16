@@ -5,7 +5,8 @@
 // joining by link and by code, picking games from either phone, turns, live
 // aim, reconnect (page reload and a server restart) and leaving, in golf and
 // in a Connect Four game to a win and a rematch. The other board games play
-// between the same two phones from their own files (reversi.ts).
+// between the same two phones from their own files (reversi.ts,
+// dots-and-boxes.ts).
 // Run with `pnpm test:online`.
 
 import { execFileSync, type ChildProcess } from "node:child_process";
@@ -17,6 +18,7 @@ import type { GolfClientMessage, GolfServerMessage } from "../../src/games/mini-
 import { findShot } from "../../src/games/mini-golf/core/solver.ts";
 import { PROTOCOL, type ClientMessage, type ServerMessage } from "../../src/party/protocol.ts";
 import { Browser, check, freePort, serverPort, SHOTS, startServer, waitFor } from "./browser.ts";
+import { BOXES_ID, boxesOnline } from "./dots-and-boxes.ts";
 import { REVERSI, reversiOnline } from "./reversi.ts";
 
 const PORT = await serverPort();
@@ -459,7 +461,7 @@ async function uiTest() {
     check(/^[A-Z0-9]{5}$/.test(code), `the menu shows the party code (${code})`);
     check(a.text("#menu-invite-url").endsWith(`/p/${code}`), "the menu shows the invite link");
     check(a.text("#menu-chip-text") === "Online · Waiting for a friend", "the chip says who's missing");
-    for (const id of [GOLF, FOUR, REVERSI]) {
+    for (const id of [GOLF, FOUR, REVERSI, BOXES_ID]) {
       check(
         tileOff(a, id) && a.text(`${tile(id)} small`) === "Waiting for a friend",
         `${id} waits for a friend`,
@@ -488,6 +490,7 @@ async function uiTest() {
 
     await connectFour(a, b, atMenu);
     await reversiOnline(a, b, ORIGIN, atMenu);
+    await boxesOnline(a, b, ORIGIN, atMenu);
 
     // Ana picks golf, with Ctrl held: online a tile never opens a new tab (it would push this one out).
     const prevented = a.eval<boolean>(`() => {

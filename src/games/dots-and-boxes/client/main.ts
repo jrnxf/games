@@ -81,6 +81,8 @@ let me: Seat = 0;
 let latest: BoxesMatch | null = null;
 /** Online: the line count a move this phone sent was picked from, until the host answers it. */
 let pending: number | null = null;
+/** Online: how many lines the host's last message had. */
+let heard = 0;
 /** Online: whether the last board drawn was this phone's turn, for the your-turn alert. */
 let wasMine = false;
 let banner: ConnectionBanner | null = null;
@@ -438,6 +440,17 @@ function settle() {
   if (!target) return;
   wins = [...m.wins];
   const before = board;
+  // In an extra turn this phone may draw a second line before the host has
+  // answered the first. The answer then holds some of its lines, not all yet:
+  // the board stays, and the next answer settles it.
+  const behind =
+    pending !== null &&
+    target.starter === before.starter &&
+    target.moves.length > heard &&
+    target.moves.length < before.moves.length &&
+    target.moves.every((line, i) => before.moves[i] === line);
+  heard = target.moves.length;
+  if (behind) return;
   const grew =
     target.starter === before.starter &&
     target.moves.length > before.moves.length &&
@@ -494,6 +507,7 @@ function openOnline(ch: Channel<BoxesServerMessage, BoxesClientMessage>) {
   me = ch.me;
   latest = null;
   pending = null;
+  heard = 0;
   wasMine = false;
   wins = [0, 0];
   const [a, b] = ch.players;
