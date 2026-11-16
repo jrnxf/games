@@ -3,8 +3,7 @@ import type { GameInfo } from "../../shell/games.ts";
 export default {
   id: "sea-battle",
   title: "Sea Battle",
-  // Online waits for the game's host (core/host.ts).
-  modes: { solo: "computer", "pass-and-play": true, online: false },
+  modes: { solo: "computer", "pass-and-play": true, online: true },
   themeColor: "#0b2030",
   tile: ["#35a7d6", "#14547e"],
   art: `<g stroke="#ffffff" stroke-opacity=".16" stroke-width=".8">

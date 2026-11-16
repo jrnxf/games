@@ -27,7 +27,6 @@ describe("menu modes", () => {
   it("says nothing against a mode a game supports", () => {
     expect(refusal(chess, "pass-and-play")).toBeNull();
     expect(blurb(chess, "pass-and-play")).toBe("2 players · one phone");
-    // Sea Battle's online host is not written yet: drop this filter when it is.
-    for (const info of GAMES.filter((g) => g.id !== "sea-battle")) expect(refusal(info, "online")).toBeNull();
+    for (const info of GAMES) expect(refusal(info, "online")).toBeNull();
   });
 });

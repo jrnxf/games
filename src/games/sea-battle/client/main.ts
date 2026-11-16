@@ -1,15 +1,20 @@
-// Sea Battle's entry: solo against the computer or pass-and-play on one phone.
-// Each player first lays out a fleet (drag a ship, tap it to turn it, or take
-// a random layout). Then a tap aims at a cell of the other's water and "Fire"
-// shoots. The big grid is the other player's water as the viewer knows it, and
-// the small one is the viewer's own fleet with the shots that fell there. On
-// one phone a "Pass to" card covers the screen between turns, so nobody sees
-// the other fleet. The game saves after every shot: a reload or a trip to the
-// menu picks up where it left off, the computer's pending shot included.
+// Sea Battle's entry: solo against the computer, pass-and-play on one phone,
+// or online with a friend in a party. Each player first lays out a fleet (drag
+// a ship, tap it to turn it, or take a random layout). Then a tap aims at a
+// cell of the other's water and "Fire" shoots. The big grid is the other
+// player's water as the viewer knows it, and the small one is the viewer's own
+// fleet with the shots that fell there. On one phone a "Pass to" card covers
+// the screen between turns, so nobody sees the other fleet. Offline, the game
+// saves after every shot: a reload or a trip to the menu picks up where it
+// left off, the computer's pending shot included. Online, the host on the
+// server holds both fleets (core/host.ts). This phone has its own fleet and
+// the marks of both players, and it draws what the host says.
 
 import "./styles.css";
 import screens from "./screens.html?raw";
 
+import { ConnectionBanner } from "../../../shell/banner.ts";
+import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
 import type { GameSession } from "../../../shell/session.ts";
 import { store as storage } from "../../../shell/storage.ts";
@@ -36,6 +41,7 @@ import {
   type Seat,
   type Ship,
 } from "../core/board.ts";
+import type { SeaClientMessage, SeaServerMessage, SeaView } from "../core/protocol.ts";
 
 document.body.insertAdjacentHTML("beforeend", screens);
 
@@ -137,11 +143,40 @@ let done: [Fleet | null, Fleet | null] = [null, null];
 let picked = 0;
 let drag: Drag | null = null;
 
+/** Online: the party's channel for this game, and this phone's seat (yellow is 0, violet 1). */
+let channel: Channel<SeaServerMessage, SeaClientMessage> | null = null;
+let me: Seat = 0;
+/** Online: the last view the host sent. */
+let latest: SeaView | null = null;
+/** Online: the fleet this phone sent for this game, until the host's view holds it. */
+let mine: Fleet | null = null;
+/**
+ * Online: the cells fired at, as far as this phone saw them. The host sends
+ * each shot once, so a shot fired while this phone was away is -1.
+ */
+let known: number[] = [];
+/** Online: the shot count a shot this phone sent was aimed from, until the host answers it. */
+let pending: number | null = null;
+/** Online: the cell of this phone's water the friend aims at, shown dimmed. */
+let foeAim: number | null = null;
+/** Online: whether the last game drawn was this phone's turn, for the your-turn alert. */
+let wasMine = false;
+let banner: ConnectionBanner | null = null;
+let toastTimer = 0;
+
 const other = (seat: Seat) => (1 - seat) as Seat;
 /** Solo, on the computer's turn. */
 const thinking = () => solo && !board.over && board.turn === COMPUTER;
+/** Online, once both fleets are placed: the shots can start. */
+const begun = () => latest !== null && latest.placed[0] && latest.placed[1];
+/** Online, while the friend places a fleet or is on turn, or the host has not answered yet. */
+const waiting = () =>
+  channel !== null && (!begun() || pending !== null || (!board.over && board.turn !== me));
+/** Online, while this phone has no connection: nothing can be sent. */
+const offline = () => channel !== null && !channel.connected;
 /** The viewer may aim and fire. */
-const canAim = () => !board.over && board.turn === view && !resting && !thinking();
+const canAim = () =>
+  !board.over && board.turn === view && !resting && !thinking() && !waiting() && !offline();
 
 /** Who fired shot `i`: the players alternate from the starter. */
 const shooter = (i: number) => (i % 2 === 0 ? board.starter : other(board.starter));
@@ -287,7 +322,12 @@ function told(seat: Seat): string | null {
 function status(seat: Seat): string {
   if (board.over && board.winner === seat) return "Winner";
   if (solo && seat === COMPUTER) return LEVEL_LABELS[level];
-  return !board.over && board.turn === seat ? "Your turn" : "";
+  const on = !board.over && board.turn === seat;
+  if (!channel) return on ? "Your turn" : "";
+  // Online, this phone's card says which colour is yours.
+  if (!begun()) return seat === me ? "You" : latest && !latest.placed[seat] ? "Placing fleet" : "";
+  if (seat !== me) return on ? "Their turn" : "";
+  return on ? "Your turn" : "You";
 }
 
 function drawPlayers() {
@@ -317,27 +357,44 @@ function drawPlayers() {
 function drawStatus() {
   const last = told(view);
   const bar = $("sb-status");
+  const wait = thinking() || waiting();
   bar.classList.toggle("go", canAim());
-  $("sb-dots").hidden = !thinking();
-  $("sb-status-text").textContent = thinking()
-    ? (last ?? `${COMPUTER_NAME} fires first`)
-    : resting
-      ? (last ?? "")
-      : last
-        ? `${last} · your turn`
-        : "Your turn · tap a cell to aim";
+  $("sb-dots").hidden = !wait;
+  $("sb-status-text").textContent =
+    channel && !latest
+      ? "Connecting"
+      : channel && !begun()
+        ? `Waiting for ${names[other(me)]}'s fleet`
+        : wait
+          ? (last ?? `${names[other(view)]} fires first`)
+          : resting
+            ? (last ?? "")
+            : last
+              ? `${last} · your turn`
+              : "Your turn · tap a cell to aim";
   $<HTMLButtonElement>("sb-fire").disabled = !canAim() || aim === null;
-  $("sb-own-title").textContent = solo ? "Your fleet" : `${names[view]}'s fleet`;
+  $("sb-own-title").textContent = solo || channel ? "Your fleet" : `${names[view]}'s fleet`;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const fmtMs = (ms: number) => `${ms < 10 ? ms.toFixed(1) : Math.round(ms)} ms`;
 
-/** The end of a game: who won and why, and in solo both players' game in numbers. */
+/** The end of a game: who won and why, in solo both players' game in numbers, and online, who wants a rematch. */
 function drawResult() {
   const w = board.winner!;
-  $("sb-result-title").textContent = `${names[w]} wins!`;
+  $("sb-result-title").textContent = channel && w === me ? "You win!" : `${names[w]} wins!`;
   $("sb-why").textContent = `Sank all five ships in ${shotsBy(w)} shots.`;
+  const again = $<HTMLButtonElement>("sb-again");
+  const note = $("sb-note");
+  const friend = names[other(me)];
+  const flags = channel && latest ? latest.rematch : [false, false];
+  again.disabled = flags[me]!;
+  again.textContent = flags[me] ? `Waiting for ${friend}` : "Play again";
+  const asked = !flags[me] && flags[1 - me];
+  // Online the line keeps its place, so the board does not jump when the friend asks.
+  note.hidden = !channel;
+  note.style.visibility = asked ? "" : "hidden";
+  note.textContent = asked ? `${friend} wants a rematch` : "\u00a0";
   const rows: [string, string][] = [];
   if (solo) {
     rows.push(["Your hits", `${hits(board, other(COMPUTER))} of ${fmt(shotsBy(other(COMPUTER)))}`]);
@@ -369,7 +426,8 @@ function draw() {
     marks: board.seen[foe].marks,
     last: lastCellBy(foe),
     fresh: isNew && lastShooter() === foe,
-    aim: null,
+    // Online, the cell the friend aims at shows dimmed until they fire.
+    aim: channel && !board.over && board.turn === foe ? foeAim : null,
     open: false,
   });
   seaEl.setAttribute("aria-label", `${names[foe]}'s water`);
@@ -392,6 +450,8 @@ function takeAim(cell: number) {
   if (!canAim() || !canFireAt(board.seen[view], cell)) return;
   aim = cell;
   draw();
+  // Online, the friend sees the aim. It is for show: a lost one does no harm.
+  channel?.send({ t: "aim", cell });
 }
 
 /** The player on turn fires at `cell`: the shot counts and saves at once. */
@@ -412,7 +472,15 @@ function shoot(cell: number): boolean {
 
 /** "Fire": the viewer shoots where they aim. On one phone, the "Pass to" card follows the result. */
 function fireAim() {
-  if (!canAim() || aim === null || !shoot(aim)) return;
+  if (!canAim() || aim === null) return;
+  if (channel) {
+    // Online, only the host knows what the shot hits. The aim stays until it answers.
+    if (!channel.send({ t: "fire", cell: aim, at: board.shots.length })) return;
+    pending = board.shots.length;
+    draw();
+    return;
+  }
+  if (!shoot(aim)) return;
   resting = !solo && !board.over;
   draw();
   if (solo) takeTurn();
@@ -572,10 +640,10 @@ function placeFor(seat: Seat) {
   yardEl.className = `sb-sea yard s${seat}`;
   yardEl.setAttribute("aria-label", `${names[seat]}'s water`);
   $("sb-place-flag").className = `sb-mini s${seat}`;
-  $("sb-place-title").textContent = solo ? "Place your fleet" : `${names[seat]}, place your fleet`;
+  $("sb-place-title").textContent = solo || channel ? "Place your fleet" : `${names[seat]}, place your fleet`;
   $("sb-hint").textContent = HINT;
   // On one phone the player who fires second places first, so the game starts in the starter's hands.
-  $("sb-done").textContent = solo || seat === starter ? "Start the battle" : "Ready";
+  $("sb-done").textContent = !channel && (solo || seat === starter) ? "Start the battle" : "Ready";
   show("sb-place");
   drawPlace();
 }
@@ -602,6 +670,15 @@ $("sb-turn").addEventListener("click", () => turnShip(picked));
 
 $("sb-done").addEventListener("click", () => {
   if (!validFleet(draft)) return;
+  if (channel) {
+    // Online, only once the host can hear it. The game waits for the friend's fleet.
+    if (!latest || !channel.send({ t: "place", fleet: draft })) return;
+    mine = draft;
+    board = boardFrom(latest);
+    show("sb-game");
+    draw();
+    return;
+  }
   done[placing] = draft;
   // The computer's fleet comes from the game's seed.
   if (solo) done[COMPUTER] = randomFleet(rng(seed));
@@ -671,10 +748,155 @@ $("sb-resume").addEventListener("click", () => {
   startGame(saved.board, true);
 });
 
+// ---------- online ----------
+
+/**
+ * The game as this phone may know it, in the shape the offline game has. The
+ * other fleet is empty until the game is over: the host does not send it.
+ */
+function boardFrom(v: SeaView): Board {
+  const fleets: [Fleet, Fleet] = [[], []];
+  fleets[me] = v.fleet ?? mine ?? [];
+  fleets[other(me)] = v.foe ?? [];
+  return {
+    fleets,
+    starter: v.first,
+    shots: known,
+    turn: v.turn,
+    seen: v.seen,
+    last: v.last,
+    over: v.over,
+    winner: v.winner,
+  };
+}
+
+/**
+ * Catches the screen up with the host's latest view: the placement screen
+ * until this phone's fleet is sent, then the game. `prev` is the view before
+ * it.
+ */
+function settle(prev: SeaView | null) {
+  const v = latest;
+  if (!channel || !v) return;
+  // A rematch gives the other player the first shot: a new game, with no fleets yet.
+  if (prev && (prev.first !== v.first || (prev.over && !v.over))) {
+    mine = null;
+    known = [];
+  }
+  wins = [...v.wins];
+  const before = known.length;
+  if (v.shots === before + 1 && v.last) known = [...known, v.last.cell];
+  else if (v.shots !== before) {
+    // This phone missed some shots (a reload, a reconnect): only the last one's cell is in the view.
+    known = Array<number>(v.shots).fill(-1);
+    if (v.last) known[v.shots - 1] = v.last.cell;
+  }
+  if (v.shots !== before) {
+    aim = null;
+    foeAim = null;
+    // One new shot splashes. A game caught up with stands still.
+    fresh = v.shots === before + 1 ? v.shots : -1;
+    if (fresh > 0 && "vibrate" in navigator)
+      navigator.vibrate(v.over ? [20, 40, 20, 40, 60] : v.last?.sunk ? [20, 30, 40] : v.last?.hit ? 25 : 8);
+  }
+  if (pending !== null) {
+    // The shot this phone sent never counted (a drop in the connection, say).
+    if (v.shots <= pending) toast("Connection hiccup · fire again");
+    pending = null;
+  }
+  board = boardFrom(v);
+  if (!v.fleet && !mine) {
+    wasMine = false;
+    // A layout in the making stays as it is.
+    if (!$("sb-place").classList.contains("on")) placeFor(me);
+    return;
+  }
+  // The host has not heard this phone's fleet (a drop in the connection, say): send it again.
+  if (!v.fleet && mine) channel.send({ t: "place", fleet: mine });
+  show("sb-game");
+  draw();
+  const myTurn = begun() && !board.over && board.turn === me;
+  if (myTurn && !wasMine) yourTurn();
+  wasMine = myTurn;
+}
+
+function yourTurn() {
+  toast("Your turn");
+  if ("vibrate" in navigator) navigator.vibrate([30, 60, 30]);
+}
+
+function toast(text: string) {
+  const el = $("sb-toast");
+  el.textContent = text;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+/** The banner sits over the board and over the placement grid: both show the same words. */
+function setBanner(text: string | null, ok = false) {
+  for (const el of document.querySelectorAll<HTMLElement>(".sb-banner")) {
+    el.hidden = !text;
+    el.textContent = text ?? "";
+    el.classList.toggle("ok", ok);
+  }
+}
+
+function onMessage(msg: SeaServerMessage) {
+  if (msg.t === "aim") {
+    // Live aim is for show: the friend's ring on this phone's water.
+    if (msg.seat === me) return;
+    foeAim = msg.cell;
+    if ($("sb-game").classList.contains("on")) draw();
+    return;
+  }
+  const prev = latest;
+  latest = msg.view;
+  settle(prev);
+}
+
+/** The connection or the players changed. */
+function onChange() {
+  const ch = channel;
+  if (!ch) return;
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  banner?.update();
+  if ($("sb-game").classList.contains("on")) draw();
+}
+
+function openOnline(ch: Channel<SeaServerMessage, SeaClientMessage>) {
+  clearTimeout(thinkTimer);
+  clearTimeout(passTimer);
+  channel = ch;
+  me = ch.me;
+  view = me;
+  latest = null;
+  mine = null;
+  known = [];
+  pending = null;
+  foeAim = null;
+  wasMine = false;
+  wins = [0, 0];
+  aim = null;
+  fresh = -1;
+  resting = false;
+  ready = null;
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  banner?.stop();
+  banner = new ConnectionBanner(ch, setBanner);
+  // Empty water, waiting, until the host sends the game.
+  board = newBoard(0, [[], []]);
+  show("sb-game");
+  draw();
+  ch.listen({ message: onMessage, change: onChange });
+}
+
 $("sb-fire").addEventListener("click", fireAim);
-$("sb-leave").addEventListener("click", goHome);
-$("sb-place-back").addEventListener("click", goHome);
-$("sb-again").addEventListener("click", rematch);
+$("sb-leave").addEventListener("click", () => (channel ? channel.leave() : goHome()));
+$("sb-place-back").addEventListener("click", () => (channel ? channel.leave() : goHome()));
+$("sb-again").addEventListener("click", () => (channel ? channel.send({ t: "rematch" }) : rematch()));
 
 // For the end-to-end test.
 (window as unknown as { __sea: unknown }).__sea = {
@@ -689,7 +911,7 @@ $("sb-again").addEventListener("click", rematch);
     over: board.over,
     winner: board.winner,
     last: board.last,
-    // Both fleets live on this phone: the game is offline.
+    // Offline, both fleets live on this phone. Online, the other one is empty until the game is over.
     fleets: board.fleets,
     seen: board.seen,
     view,
@@ -701,12 +923,23 @@ $("sb-again").addEventListener("click", rematch);
     seed,
     level: solo ? level : null,
     notes,
+    me: channel ? me : null,
+    placed: latest?.placed ?? null,
+    rematch: latest?.rematch ?? null,
+    foeAim,
+    pending,
   }),
 };
 
 // ---------- shell hooks ----------
 
 export function open(_rest: string, session: GameSession): void {
+  if (session.mode === "online") {
+    // Straight into the party's game, on this phone's seat.
+    solo = false;
+    if (!channel) openOnline(session.channel as Channel<SeaServerMessage, SeaClientMessage>);
+    return;
+  }
   solo = session.mode === "solo";
   if (session.mode === "solo") {
     names = [cleanName(session.names[0], DEFAULT_NAMES[0]), COMPUTER_NAME];
@@ -723,4 +956,11 @@ export function close(): void {
   clearTimeout(passTimer);
   ready = null;
   drag = null;
+  // Online, the game stays on the server.
+  channel = null;
+  latest = null;
+  clearTimeout(toastTimer);
+  $("sb-toast").classList.remove("on");
+  banner?.stop();
+  banner = null;
 }

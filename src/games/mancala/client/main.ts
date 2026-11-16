@@ -344,7 +344,7 @@ function drawResult() {
   // Online the line keeps its place, so the board does not jump when the friend asks.
   note.hidden = !channel;
   note.style.visibility = asked ? "" : "hidden";
-  note.textContent = asked ? `${friend} wants a rematch` : " ";
+  note.textContent = asked ? `${friend} wants a rematch` : "\u00a0";
   const rows: [string, string][] = [];
   if (solo && notes.length > 0) {
     rows.push(["Positions checked", fmt(notes.reduce((a, x) => a + x.positions, 0))]);
