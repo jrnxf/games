@@ -3,6 +3,7 @@
 
 import { fourHost } from "../src/games/connect-four/core/host.ts";
 import { boxesHost } from "../src/games/dots-and-boxes/core/host.ts";
+import { mancalaHost } from "../src/games/mancala/core/host.ts";
 import { golfHost } from "../src/games/mini-golf/core/host.ts";
 import { reversiHost } from "../src/games/reversi/core/host.ts";
 import type { Hosts } from "../src/party/host.ts";
@@ -12,4 +13,5 @@ export const HOSTS: Hosts = {
   "connect-four": fourHost,
   reversi: reversiHost,
   "dots-and-boxes": boxesHost,
+  mancala: mancalaHost,
 };

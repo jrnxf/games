@@ -1,0 +1,618 @@
+/* Mancala screens. Its warm carved-wood palette applies only while it is open. */
+
+body[data-game="mancala"] {
+  --bg: #2a1a14;
+  --bg-2: #4a2c1e;
+  --panel: #3a241a;
+  --ink: #fff3e2;
+  --muted: #d0b49c;
+  --line: rgba(255, 243, 226, 0.16);
+  --p1: #ffb545;
+  --p1-dark: #c47a14;
+  --p2: #5fd6c4;
+  --p2-dark: #2a9a8a;
+  --accent: #ffd76a;
+  --on-accent: #2a1f0a;
+  --mc-wood: #b46a36;
+  --mc-wood-edge: #6e3a18;
+  --mc-pit: #6b3517;
+  --mc-pit-deep: #4f250e;
+}
+
+#mc-game {
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+#mc-game .bar {
+  padding: 0 4px 0 0;
+  margin-left: -4px;
+}
+
+/* The running score, in the bar: a swatch and a number for each player. */
+.mc-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mc-tally b {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-tally:empty {
+  display: none;
+}
+
+/* ---------- players ---------- */
+
+.mc-players {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.mc-pl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: rgba(255, 243, 226, 0.05);
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.mc-pl.on {
+  opacity: 1;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.mc-pl.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.mc-pl.s0,
+.mc-mini.s0,
+.mc-hole.s0 {
+  --c: var(--p1);
+  --cd: var(--p1-dark);
+}
+
+.mc-pl.s1,
+.mc-mini.s1,
+.mc-hole.s1 {
+  --c: var(--p2);
+  --cd: var(--p2-dark);
+}
+
+/* A player's colour: a small seed. */
+.mc-mini {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset 0 -3px 0 var(--cd);
+}
+
+.mc-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The idle player has no status: their name centers in the card. */
+.mc-sub:empty {
+  display: none;
+}
+
+.mc-count {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- board ---------- */
+
+.mc-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* The board sizes itself to whatever room the bar, the cards and the dock leave. */
+  container-type: size;
+}
+
+/*
+ * The board stands upright on a phone: a store at each end and six pits down
+ * each side. Seeds run down the left side, into the bottom store, up the
+ * right side and into the top store. main.ts gives each hole its row and
+ * column.
+ */
+.mc-board {
+  --seed: 10px;
+  position: relative;
+  width: min(100cqw, 420px);
+  height: min(100cqh - 8px, 760px);
+  margin: 0 auto;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: 30px;
+  background: var(--mc-wood);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    0 5px 0 var(--mc-wood-edge),
+    0 12px 24px rgba(0, 0, 0, 0.35);
+  touch-action: manipulation;
+}
+
+.mc-hole {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mc-pit);
+  box-shadow: inset 0 4px 0 var(--mc-pit-deep);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow 0.15s;
+}
+
+/* The pits on the right count on their outer edge too. */
+.mc-hole.far {
+  flex-direction: row-reverse;
+}
+
+.mc-store {
+  grid-column: 1 / -1;
+  border-radius: 22px;
+  padding: 4px 14px;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent),
+    inset 0 4px 0 var(--mc-pit-deep);
+}
+
+/* A full store holds most of the 48 seeds: they sit closer there. */
+.mc-store .mc-seeds {
+  --seed: 8px;
+  gap: 2px;
+}
+
+/* A pit the player on turn may sow wears their colour. */
+.mc-pit.can {
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 2px var(--c),
+    inset 0 4px 0 var(--mc-pit-deep);
+}
+
+.mc-pit.can:active {
+  background: color-mix(in srgb, var(--c) 22%, var(--mc-pit));
+}
+
+.mc-pit:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* The pit the last move was sown from. */
+.mc-pit.from::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px dashed color-mix(in srgb, var(--c) 75%, transparent);
+  pointer-events: none;
+}
+
+/* How many seeds a hole holds. */
+.mc-n {
+  flex: none;
+  min-width: 24px;
+  color: var(--c);
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+}
+
+.mc-store .mc-n {
+  min-width: 34px;
+  font-size: 26px;
+}
+
+.mc-pit:not(.can) .mc-n {
+  color: color-mix(in srgb, var(--c) 70%, var(--mc-pit));
+}
+
+.mc-seeds {
+  flex: 1;
+  min-width: 0;
+  max-height: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.mc-seeds i {
+  width: var(--seed);
+  height: var(--seed);
+  border-radius: 50%;
+  background: #ffe9c4;
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+/* Seeds come in four glazes, for texture only: they belong to nobody. */
+.mc-seeds i:nth-child(4n + 2) {
+  background: #7fe3d4;
+}
+
+.mc-seeds i:nth-child(4n + 3) {
+  background: #ffc35e;
+}
+
+.mc-seeds i:nth-child(4n + 4) {
+  background: #f08a6c;
+}
+
+/* A seed that just fell pops in, and its hole flashes. */
+.mc-seeds i.new {
+  animation: mc-seed 0.22s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes mc-seed {
+  from {
+    transform: translateY(-8px) scale(1.7);
+    opacity: 0.3;
+  }
+}
+
+.mc-hole.drop,
+.mc-hole.take,
+.mc-hole.sweep {
+  animation: mc-flash 0.3s ease-out;
+}
+
+.mc-hole.lift {
+  animation: mc-lift 0.3s ease-out;
+}
+
+@keyframes mc-flash {
+  from {
+    background: color-mix(in srgb, var(--ink) 38%, var(--mc-pit));
+  }
+}
+
+@keyframes mc-lift {
+  from {
+    background: color-mix(in srgb, var(--c) 45%, var(--mc-pit));
+  }
+}
+
+/* Seeds won at once, by a capture or at the end: the number floats off the store. */
+.mc-gain {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--c);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 900;
+  opacity: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* It stays clear of the store's count. */
+.mc-hole.far .mc-gain {
+  right: auto;
+  left: 16px;
+}
+
+.mc-gain.on {
+  animation: mc-gain 1.1s ease-out;
+}
+
+@keyframes mc-gain {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+  15%,
+  70% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-110%) scale(1);
+  }
+}
+
+@media (min-width: 700px) {
+  .mc-board {
+    --seed: 12px;
+  }
+
+  .mc-store .mc-seeds {
+    --seed: 10px;
+    gap: 3px;
+  }
+}
+
+/* ---------- dock ---------- */
+
+/* Whose turn it is, an extra turn, or who the game waits for: one calm bar under the board. */
+.mc-status {
+  padding: 14px 0 18px;
+}
+
+.mc-status p {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 243, 226, 0.14);
+  background: rgba(255, 243, 226, 0.05);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.mc-status span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The player on this phone is on turn: the bar lights up. */
+.mc-status.go p {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--ink);
+}
+
+.mc-dots {
+  flex: none;
+  display: flex;
+  gap: 5px;
+}
+
+.mc-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: mc-wait 1s ease-in-out infinite;
+}
+
+.mc-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.mc-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes mc-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.mc-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 18px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.mc-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.mc-why,
+.mc-note {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.mc-note {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.mc-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Solo: the computer's game in numbers, one short row. */
+.mc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 4px 0;
+}
+
+.mc-stats:empty {
+  display: none;
+}
+
+.mc-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mc-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- online ---------- */
+
+/* The your-turn alert drops in from the top of the play area, as golf's does. */
+.mc-toast {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  max-width: calc(100% - 16px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -12px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1),
+    opacity 0.2s,
+    visibility 0.35s;
+}
+
+.mc-toast.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.mc-banner {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--amber);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mc-banner.ok {
+  border-color: var(--accent);
+}
+
+/* Keep the your-turn alert clear of a connection banner. */
+.mc-banner:not([hidden]) + .mc-toast {
+  top: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-seeds i.new,
+  .mc-hole.lift,
+  .mc-hole.drop,
+  .mc-hole.take,
+  .mc-hole.sweep,
+  .mc-dots i {
+    animation: none;
+  }
+}
+
+/* ---------- home ---------- */
+
+/* The session's two players, shown as the cards from the board. */
+#mc-home .mc-pl {
+  flex: none;
+}

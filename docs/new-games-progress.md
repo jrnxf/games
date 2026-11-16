@@ -26,8 +26,8 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/mancala.test.ts`)
 - [x] Computer: alpha-beta on store difference, depth by level, capped by positions + tests (`core/ai.ts`, `tests/unit/mancala-ai.test.ts`)
-- [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, sowing animated seed by seed
-- [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests, online client code
+- [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, sowing animated seed by seed
+- [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests (`tests/unit/mancala-host.test.ts`), online client code (not yet played between two phones)
 - [ ] E2E: `tests/e2e/mancala.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked
 - [ ] README entry (and its Test section) and `docs/decisions.md` section
 
@@ -63,4 +63,8 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Mancala computer: `think(board, level, seed)` returns `{ pit, positions, ms, depth, exact }`. It is a negamax with alpha-beta on the store difference, one ply deeper per pass. An extra turn is one more ply for the same player. A finished game scores its margin times 100, so a sure result beats every guess. Easy reads 1 ply and plays a random pit 3 times in 10. Medium reads 4 plies, with 1 random pit in 10. Hard reads as deep as 150,000 positions allow (10 to 14 plies in the middle game, about 25 ms at worst on a desktop). `exact` is true when no line stopped at a guess, so the result is certain. Write these choices in `docs/decisions.md` at the README step.
 
-Next: the Mancala client (`client/`, `info.ts`, `GAMES`): solo and pass & play, with the sowing animated seed by seed from `sowing(b, pit)`.
+- Mancala client: ids and classes start with `mc-`. The board stands upright: a store at each end and six pits down each side. The near seat's pits run down the left into the bottom store, and the other seat's run up the right into the top store. The near seat is seat 0 offline and this phone's seat online, and the player cards swap sides with it. A move counts and saves at once. Then `sow` shows it frame by frame (`framesOf`: a lift, one seed per hole every 100 ms, a capture, the end sweep) while `busy` locks taps. `shown` holds the seeds on screen. With reduced motion the seeds land at once. The dashed pit is the one the last move came from. The computer waits 500 ms, and 300 ms before each further move of an extra turn. The test hook is `window.__mancala.state()` (it has `busy`, `shown`, `holes`, `near`), and a legal pit is `#mc-board .mc-pit.can`. Hole `h` is `#mc-board > :nth-child(h + 1)`. Online has no dimmed pending choice: one tap sows the pit. Write the upright board, the near seat and this in `docs/decisions.md` at the README step.
+
+- Mancala online: `settle` sows the friend's move when the host's answer is one move longer than the board, keeps falling seeds on the echo of this phone's own move, and has the same `heard` rule as Dots and Boxes for a second move in an extra turn. The e2e must play an extra turn on a slow link, a capture, and a rematch.
+
+Next: the Mancala e2e (`tests/e2e/mancala.ts`, called from `menu.ts` and `online.ts`): solo against Hard, pass & play with the fixture games in `tests/unit/mancala-games.ts`, offline, and online between two phones.

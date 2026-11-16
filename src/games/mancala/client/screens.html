@@ -1,0 +1,73 @@
+<!-- Mancala screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="mc-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Mancala</span>
+  </div>
+  <form class="pad stack" id="mc-form">
+    <p class="lead" id="mc-lead"></p>
+    <div class="mc-pl s0 on">
+      <i class="mc-mini s0"></i>
+      <div><b class="mc-name" id="mc-name-0"></b><small class="mc-sub" id="mc-sub-0"></small></div>
+    </div>
+    <div class="mc-pl s1 on">
+      <i class="mc-mini s1"></i>
+      <div><b class="mc-name" id="mc-name-1"></b><small class="mc-sub" id="mc-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="mc-start">Start</button>
+    <button class="btn outline" type="button" id="mc-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Board -->
+<section class="screen" id="mc-game" data-screen>
+  <div class="bar">
+    <button class="back" id="mc-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Mancala</span>
+    <!-- Games won, once there is one. -->
+    <span class="mc-tally" id="mc-tally" aria-label="Games won"></span>
+  </div>
+  <div class="mc-players">
+    <div class="mc-pl s0" id="mc-pl-0">
+      <i class="mc-mini s0"></i>
+      <div><b class="mc-name"></b><small class="mc-sub"></small></div>
+      <span class="mc-count" aria-label="Seeds in store"></span>
+    </div>
+    <div class="mc-pl s1 right" id="mc-pl-1">
+      <i class="mc-mini s1"></i>
+      <div><b class="mc-name"></b><small class="mc-sub"></small></div>
+      <span class="mc-count" aria-label="Seeds in store"></span>
+    </div>
+  </div>
+  <div class="mc-play">
+    <div class="mc-banner" id="mc-banner" role="status" hidden></div>
+    <div class="mc-toast" id="mc-toast" role="status"></div>
+    <div class="mc-board" id="mc-board" role="group" aria-label="Board"></div>
+  </div>
+  <div class="mc-dock">
+    <div class="mc-status" id="mc-status">
+      <p role="status">
+        <span id="mc-status-text"></span
+        ><span class="mc-dots" id="mc-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </p>
+    </div>
+    <div class="mc-result" id="mc-result" hidden>
+      <h2 id="mc-result-title" role="status"></h2>
+      <p class="mc-why" id="mc-why"></p>
+      <p class="mc-note" id="mc-note" hidden></p>
+      <!-- Solo: the computer's game in numbers. -->
+      <dl class="mc-stats" id="mc-stats"></dl>
+      <div class="mc-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="mc-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</section>

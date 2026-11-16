@@ -91,8 +91,8 @@ try {
   await waitFor("menu", () => phone.visible("games"));
   check(phone.eval<string>("() => location.pathname") === "/", "the menu is at /");
   check(
-    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 4,
-    "four game tiles",
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 5,
+    "five game tiles",
   );
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
