@@ -44,7 +44,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 ## 5. Ultimate Tic-Tac-Toe (`ultimate-tic-tac-toe`)
 
-- [ ] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
+- [x] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
 - [ ] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`)
 - [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the boards you may play in highlighted
 - [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests, online client code
@@ -102,4 +102,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Sea Battle e2e menu: `seaSolo`, `seaPassAndPlay` and `seaOffline` in `tests/e2e/sea-battle.ts`. The test reads both fleets from the hook, so it needs no fixed layout: in solo Zoe sinks the Skiff and then fires at open water until Hard wins, and in pass & play Zoe sinks Kai's fleet in 17 shots while Kai misses. `finger` moves a ship with `PointerEvent`s on `#sb-yard`, `hand` checks the "Pass to" card and taps "I'm ready", and `volley` fires a run of shots inside the page. `fits` checks the placement and game screens at 360x740 and 820x1180.
 
-Next: the Ultimate Tic-Tac-Toe core rules and unit tests (`src/games/ultimate-tic-tac-toe/core/board.ts`).
+- Ultimate Tic-Tac-Toe board: a cell is `board * 9 + spot` (`at`, `boardOf`, `spotOf`), with boards and spots both row-major. `won` holds the seat per small board (null for a board in play and for a full board nobody won), and `target` is the small board the player on turn must play in (null: any open board). A won small board takes no more marks, even with empty spots. The game is a draw when no board is open and nobody has a line: the number of boards held does not count. `LINES` and `lineOf` serve the spots and the grid of boards. `openBoards(b)` is the list to highlight. Fixtures are in `tests/unit/ultimate-tic-tac-toe-games.ts` (`SENT_TO_WON`, `SENT_TO_FULL`, `WIN`, `DRAW`). Write the draw rule in `docs/decisions.md` at the README step.
+
+Next: the Ultimate Tic-Tac-Toe computer (`src/games/ultimate-tic-tac-toe/core/ai.ts`): Monte Carlo tree search, playouts by level, capped by time, with tests.
