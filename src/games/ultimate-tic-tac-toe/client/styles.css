@@ -1,0 +1,526 @@
+/* Ultimate Tic-Tac-Toe screens. Its berry palette applies only while it is open. */
+
+body[data-game="ultimate-tic-tac-toe"] {
+  --bg: #2a1626;
+  --bg-2: #47203c;
+  --panel: #3a1c33;
+  --ink: #fff3f8;
+  --muted: #d0a9bf;
+  --line: rgba(255, 243, 248, 0.16);
+  --p1: #ffc93c;
+  --p1-dark: #c9920c;
+  --p2: #5ad6e8;
+  --p2-dark: #2a9db0;
+  --accent: #ff7eb6;
+  --on-accent: #3a0a22;
+  --ut-board: #5c2149;
+  --ut-board-edge: #2b0d21;
+  --ut-small: #45163a;
+  --ut-cell: #5f2850;
+  --ut-cell-can: #8a4074;
+}
+
+#ut-game {
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+#ut-game .bar {
+  padding: 0 4px 0 0;
+  margin-left: -4px;
+}
+
+/* A long title: it stays on one line beside the running score, on a narrow phone too. */
+#ut-game .bar-title {
+  min-width: 0;
+  font-size: 17px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The running score, in the bar: a mark and a number for each player. */
+.ut-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ut-tally b {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.ut-tally:empty {
+  display: none;
+}
+
+/* ---------- players ---------- */
+
+.ut-players {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.ut-pl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: rgba(255, 243, 248, 0.05);
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.ut-pl.on {
+  opacity: 1;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.ut-pl.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* A small X or O beside a name. */
+.ut-mini {
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.ut-mini.s0::before,
+.ut-mini.s0::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 2px);
+  top: -1px;
+  bottom: -1px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--p1);
+  transform: rotate(45deg);
+}
+
+.ut-mini.s0::after {
+  transform: rotate(-45deg);
+}
+
+.ut-mini.s1 {
+  border: 4px solid var(--p2);
+  border-radius: 50%;
+}
+
+.ut-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.ut-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ut-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The idle player has no status: their name centers in the card. */
+.ut-sub:empty {
+  display: none;
+}
+
+.ut-count {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- board ---------- */
+
+.ut-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Out to the edges of the screen, so the board can use the whole width. */
+  margin: 0 -12px;
+  /* The board sizes itself to whatever room the bar, the cards and the dock leave. */
+  container-type: size;
+}
+
+.ut-board {
+  /*
+   * Nine spots across the width, capped so the board fits the height. The
+   * 34 px are the board's padding, the gaps and the small boards' padding.
+   */
+  --cell: min(calc((100cqw - 34px) / 9), 68px, calc((100cqh - 40px) / 9));
+  /* The colour of the player on turn: it lights the boards they may play in. */
+  --turn: var(--p1);
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 4px;
+  margin: 0 auto;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--ut-board);
+  box-shadow:
+    0 5px 0 var(--ut-board-edge),
+    0 12px 24px rgba(0, 0, 0, 0.4);
+  touch-action: manipulation;
+}
+
+.ut-board[data-turn="1"] {
+  --turn: var(--p2);
+}
+
+.ut-small {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, var(--cell));
+  gap: 1px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--ut-small);
+  transition:
+    box-shadow 0.2s,
+    background-color 0.2s,
+    opacity 0.2s;
+}
+
+/* A board the player on turn may play in: a ring in their colour, and brighter spots. */
+.ut-small.open {
+  background: color-mix(in srgb, var(--turn) 30%, var(--ut-small));
+  box-shadow: inset 0 0 0 2px var(--turn);
+}
+
+.ut-cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ut-cell);
+  cursor: default;
+  transition: background-color 0.2s;
+}
+
+.ut-cell.can {
+  background: var(--ut-cell-can);
+  cursor: pointer;
+}
+
+.ut-cell.can:active {
+  background: color-mix(in srgb, var(--turn) 45%, var(--ut-cell-can));
+}
+
+/* The spot played last. */
+.ut-cell.last {
+  box-shadow: inset 0 0 0 2px rgba(255, 243, 248, 0.6);
+}
+
+/* The spot aimed at: a ring and a dim mark, until "Place" makes it. */
+.ut-cell.aim {
+  box-shadow: inset 0 0 0 2px var(--turn);
+}
+
+.ut-cell:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: -3px;
+}
+
+.ut-mark {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.ut-mark.s0 {
+  --c: var(--p1);
+}
+
+.ut-mark.s1 {
+  --c: var(--p2);
+}
+
+.ut-mark.ghost {
+  opacity: 0.5;
+  animation: ut-aim 1.1s ease-in-out infinite;
+}
+
+@keyframes ut-aim {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* A new mark draws itself in. */
+.ut-mark.fresh {
+  stroke-dasharray: 1;
+  animation: ut-pen 0.28s ease-out backwards;
+}
+
+@keyframes ut-pen {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* The big mark over a small board that somebody won. */
+.ut-big {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.ut-big .ut-mark {
+  width: 92%;
+  height: 92%;
+  stroke-width: 2.6;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* It follows the mark that won the board. */
+.ut-big .ut-mark.fresh {
+  animation: ut-pen 0.4s 0.2s ease-out backwards;
+}
+
+.ut-small.won {
+  background: color-mix(in srgb, var(--c) 26%, var(--ut-small));
+}
+
+.ut-small.won.s0 {
+  --c: var(--p1);
+}
+
+.ut-small.won.s1 {
+  --c: var(--p2);
+}
+
+/* A closed board steps back: its small marks fade under the big one. */
+.ut-small.won .ut-cell,
+.ut-small.dead .ut-cell {
+  background: transparent;
+  box-shadow: none;
+}
+
+.ut-small.won .ut-cell .ut-mark {
+  opacity: 0.22;
+  transition: opacity 0.3s 0.2s;
+}
+
+.ut-small.dead .ut-cell .ut-mark {
+  opacity: 0.45;
+}
+
+/* The game is over: the three boards of the winning line stand out. */
+.ut-board.over .ut-small:not(.line) {
+  opacity: 0.45;
+}
+
+.ut-small.line {
+  box-shadow: inset 0 0 0 2px var(--c);
+  animation: ut-line 0.5s 0.5s ease-out backwards;
+}
+
+@keyframes ut-line {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- dock ---------- */
+
+/* Whose turn it is beside the button that makes the mark. */
+.ut-act {
+  display: flex;
+  gap: 10px;
+  padding: 14px 0 18px;
+}
+
+.ut-status {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 243, 248, 0.14);
+  background: rgba(255, 243, 248, 0.05);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.ut-status span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The player on this phone is on turn: the line lights up. */
+.ut-status.go {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--ink);
+}
+
+#ut-place {
+  flex: none;
+  width: 116px;
+  min-height: 56px;
+}
+
+.ut-dots {
+  flex: none;
+  display: flex;
+  gap: 5px;
+}
+
+.ut-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ut-dot 1s ease-in-out infinite;
+}
+
+.ut-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ut-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ut-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.ut-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 18px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.ut-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.ut-why {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ut-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Solo: the computer's game in numbers, one short row. */
+.ut-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 4px 0;
+}
+
+.ut-stats:empty {
+  display: none;
+}
+
+.ut-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ut-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ut-mark.fresh,
+  .ut-mark.ghost,
+  .ut-small.line,
+  .ut-dots i {
+    animation: none;
+  }
+}
+
+/* ---------- home ---------- */
+
+/* The session's two players, shown as the cards from the board. */
+#ut-home .ut-pl {
+  flex: none;
+}

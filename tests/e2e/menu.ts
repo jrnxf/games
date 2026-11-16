@@ -92,7 +92,10 @@ try {
   phone.click("#start-go");
   await waitFor("menu", () => phone.visible("games"));
   check(phone.eval<string>("() => location.pathname") === "/", "the menu is at /");
-  check(phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 6, "six game tiles");
+  check(
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 7,
+    "seven game tiles",
+  );
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
     phone.eval<number>(`() => document.querySelectorAll("#tiles .tile.off").length`) === 0 &&

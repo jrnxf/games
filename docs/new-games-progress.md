@@ -46,6 +46,14 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
 - [x] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`, `tests/unit/ultimate-tic-tac-toe-ai.test.ts`)
+- [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the open boards lit
+- [ ] Online host: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests (`tests/unit/ultimate-tic-tac-toe-host.test.ts`)
+- [ ] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
+- [ ] E2E: `tests/e2e/ultimate-tic-tac-toe.ts` (solo, pass & play, offline, online), called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [ ] README entry (and its Test section) and `docs/decisions.md` section
+
+- [x] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
+- [x] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`, `tests/unit/ultimate-tic-tac-toe-ai.test.ts`)
 - [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the boards you may play in highlighted
 - [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests, online client code
 - [ ] E2E: `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
@@ -106,4 +114,10 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Ultimate Tic-Tac-Toe computer: `think(board, level, seed, ms = LEVELS[level].ms)` returns `{ cell, playouts, ms, capped }`. It has two caps: playouts by level (Easy 40, Medium 600, Hard 12,000) and a clock of 250 ms. Hard takes about 50 ms at most on a desktop, so the clock stops it on slow phones only. A move is a pure function of the board, the level and the seed while the clock does not cut the search short: the tests pass `Infinity` as `ms` for that. Before the search, the computer takes a win in one and leaves out every mark that hands the other player a win in one, and a playout takes a game-winning mark when there is one. The client can call `think` on the main thread. `ai.ts` must stay type-strippable (no constructor parameter properties), because Node runs the TypeScript directly. Write the two caps and the root filter in `docs/decisions.md` at the README step.
 
-Next: the Ultimate Tic-Tac-Toe client (`info.ts`, `client/`, added to `GAMES`): solo and pass & play, save and running score, the boards you may play in highlighted.
+- Ultimate Tic-Tac-Toe client: ids and classes start with `ut-`. Nine spots across can't be 44 px on a phone (36 px at 360), so a tap only aims (a dim mark, `aim`) and "Place" makes the mark. A second tap on the aimed spot also makes it. The open boards have a ring and brighter spots in the colour of the player on turn (`.ut-small.open`, `.ut-cell.can`). A won board shows a big mark over its faded spots (`.won.s0`, `.won.s1`), a full board nobody won is `.dead`, and the winning three are `.line`. A new mark draws itself in (`fresh`). The status line adds "· any board" when the last mark sent the player to a closed board. The player is X and the computer O in solo. `think` runs on the main thread after a 500 ms wait. The test hook is `window.__ultimate.state()` (it has `moves`, `target`, `open`, `legal`, `won`, `line`, `aim`, `thinking`, `locked`, `notes`). Cell `c` is `document.querySelectorAll("#ut-board .ut-cell")[c]`, or `#ut-board .ut-small:nth-child(c / 9 + 1) .ut-cell:nth-child(c % 9 + 1)`. Write the aim-then-place choice in `docs/decisions.md` at the README step.
+
+- Ultimate Tic-Tac-Toe is on the menu with `online: false` until its host exists, so its tile is dimmed in a party. `tests/unit/games.test.ts` filters `ultimate-tic-tac-toe` from its "every game plays online" check: remove that filter and set `online: true` at the online client step. `tests/e2e/menu.ts` now expects seven tiles. The menu tile title has `text-wrap: balance`, so the long title breaks between words.
+
+- The client was checked by hand in a browser (pass & play to a win and a draw, a rematch, solo against Hard with a reload, 360x740 and 820x1180), but it has no e2e in the repo yet.
+
+Next: the Ultimate Tic-Tac-Toe online host (`core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` 9) with its unit tests. Model it on Reversi's host, plus an `aim` message for the friend's dimmed aim.
