@@ -40,11 +40,17 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, placement sent to the host, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
 - [x] E2E online: `seaOnline` in `tests/e2e/sea-battle.ts`, called from `tests/e2e/online.ts`
 - [x] E2E menu: solo, pass & play and offline parts in `tests/e2e/sea-battle.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
-- [ ] README entry (and its Test section) and `docs/decisions.md` section
+- [x] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 5. Ultimate Tic-Tac-Toe (`ultimate-tic-tac-toe`)
 
-- [ ] All steps
+- [ ] Core rules + unit tests (`core/board.ts`, `tests/unit/ultimate-tic-tac-toe.test.ts`)
+- [ ] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`)
+- [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the boards you may play in highlighted
+- [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests, online client code
+- [ ] E2E: `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [ ] README entry (and its Test section) and `docs/decisions.md` section
+- [ ] Last: run every check in "Done means" (`test:e2e`, `test:solo` and `test:look` too), then delete this file
 
 ## Notes
 
@@ -96,4 +102,4 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Sea Battle e2e menu: `seaSolo`, `seaPassAndPlay` and `seaOffline` in `tests/e2e/sea-battle.ts`. The test reads both fleets from the hook, so it needs no fixed layout: in solo Zoe sinks the Skiff and then fires at open water until Hard wins, and in pass & play Zoe sinks Kai's fleet in 17 shots while Kai misses. `finger` moves a ship with `PointerEvent`s on `#sb-yard`, `hand` checks the "Pass to" card and taps "I'm ready", and `volley` fires a run of shots inside the page. `fits` checks the placement and game screens at 360x740 and 820x1180.
 
-Next: the Sea Battle README entry (and its Test section) and the `docs/decisions.md` section, from the notes above. Then start Ultimate Tic-Tac-Toe with its core rules and unit tests.
+Next: the Ultimate Tic-Tac-Toe core rules and unit tests (`src/games/ultimate-tic-tac-toe/core/board.ts`).

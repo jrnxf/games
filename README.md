@@ -26,6 +26,11 @@ Small games for your phone, in one web app you add to your home screen: no app s
 
 - **Online**: amber is the party's maker, teal the friend, and whoever picked the game sows first. Each phone shows its own store at the bottom. You watch your friend's seeds fall, then get a "your turn" alert, and you can sow the next pit of an extra turn at once. A rematch waits until both players tap it, and the score lasts as long as the party.
 
+**Sea Battle** (`/sea-battle`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. Each player has a fleet of five ships, of 5, 4, 3, 3 and 2 cells, on a 10 by 10 grid. The fleet starts in a random layout: drag a ship to move it, tap it to turn it, or press Random for a new layout, then press Ready. Then the players fire one shot each, turn about. Tap a cell of the big grid to aim and press Fire. A ring marks a miss, a flame a hit, and a sunk ship shows whole. The small grid under it shows your own fleet and the shots that fell there. Sink all five ships to win, and the result shows where the other fleet was. You go first in the first game, then the first shot alternates. The game saves after every shot and keeps a running score. In solo, the result recaps both players' hits and how long the computer thought.
+
+- **Pass & play**: a "Pass to Kai / I'm ready" card goes up after each shot, and while the fleets are placed, so nobody sees the other player's ships. The card says what the last shot did.
+- **Online**: yellow is the party's maker, violet the friend, and whoever picked the game fires first. Both players place their fleets at the same time. Your friend's ships never reach your phone until the game is over. On your friend's turn you see their aim, dimmed, on your own fleet, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
+
 ## Stack
 
 TypeScript everywhere, no framework.
@@ -56,12 +61,12 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes and Mancala
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala and Sea Battle
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
-pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes and Mancala to a win and a rematch, menu, reconnect, leave
+pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes, Mancala and Sea Battle to a win and a rematch, menu, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes and Mancala solo vs the computer and pass & play, resume, rematch, offline
+pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes, Mancala and Sea Battle solo vs the computer and pass & play, resume, rematch, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.
