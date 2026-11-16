@@ -16,7 +16,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 ## 2. Dots and Boxes (`dots-and-boxes`)
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/dots-and-boxes.test.ts`)
-- [ ] Computer + tests
+- [x] Computer: plain rules on Easy and Medium, a search of safe lines and of the endgame on Hard, capped by positions + tests (`core/ai.ts`, `tests/unit/dots-and-boxes-ai.test.ts`)
 - [ ] Client, `info.ts`, `GAMES`
 - [ ] Online host, protocol, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests, online client
 - [ ] E2E: `tests/e2e/dots-and-boxes.ts`
@@ -46,4 +46,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Dots and Boxes board: 60 lines, the 30 horizontal ones first (`across(row, col)`), then the 30 vertical ones (`down(row, col)`). A game is its starter plus the lines drawn. `play` keeps the turn with the mover and sets `again` when a line closes a box. 25 boxes can't split evenly, so there is no draw. Fixture games are in `tests/unit/dots-and-boxes-games.ts`.
 
-Next: the Dots and Boxes computer (`core/ai.ts`): Easy avoids the third side of a box, Medium also takes free boxes, Hard plays the long-chain rule and double-dealing in the endgame, with tests.
+- Dots and Boxes computer: `think(board, level, seed)` returns `{ line, positions, ms, exact }`. Easy takes a box on offer half the time, so it looks careless and not broken. Medium takes every box and gives away the fewest. Hard searches once 24 or fewer safe lines are left: one pass that scores the chains and loops left when the safe lines run out (the long-chain rule), then one pass to the end of the game (double-deals), each capped at 40,000 positions, about 45 ms at worst on a desktop. Over the budget it plays like Medium. The search never gives boxes away while a safe line is left. The endgame matches a brute-force solver. Write these choices in `docs/decisions.md` at the README step.
+
+Next: the Dots and Boxes client (`client/screens.html`, `styles.css`, `main.ts`), `info.ts` and `GAMES`, together with the online host, protocol 6 and `worker/hosts.ts`, because `tests/unit/games.test.ts` needs every game in `GAMES` to play online.
