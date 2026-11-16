@@ -224,6 +224,8 @@
   font-family: var(--display);
   font-size: 19px;
   font-weight: 800;
+  /* A long title breaks between words, not at a hyphen. */
+  text-wrap: balance;
 }
 
 .tile small {

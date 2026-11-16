@@ -1,0 +1,797 @@
+/* Sea Battle screens. Its deep-water palette applies only while it is open. */
+
+body[data-game="sea-battle"] {
+  --bg: #0b2030;
+  --bg-2: #12384e;
+  --panel: #10293b;
+  --ink: #eefaff;
+  --muted: #9fbccb;
+  --line: rgba(238, 250, 255, 0.16);
+  --p1: #ffd23f;
+  --p1-dark: #c99a0c;
+  --p2: #c4a7ff;
+  --p2-dark: #8a68d6;
+  --accent: #7fe7ff;
+  --on-accent: #06202b;
+  --sb-water: #17658a;
+  --sb-water-deep: #0f4c6c;
+  --sb-hit: #ff5a3c;
+  --sb-wreck: #1b2a36;
+}
+
+#sb-game,
+#sb-place {
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+#sb-game .bar,
+#sb-place .bar {
+  padding: 0 4px 0 0;
+  margin-left: -4px;
+}
+
+/* The running score, in the bar: a pennant and a number for each player. */
+.sb-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sb-tally b {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-tally:empty {
+  display: none;
+}
+
+/* ---------- players ---------- */
+
+.sb-players {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.sb-pl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 60px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: rgba(238, 250, 255, 0.05);
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.sb-pl.on {
+  opacity: 1;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.sb-pl.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.sb-pl.s0,
+.sb-mini.s0,
+.sb-sea.s0 {
+  --c: var(--p1);
+  --cd: var(--p1-dark);
+}
+
+.sb-pl.s1,
+.sb-mini.s1,
+.sb-sea.s1 {
+  --c: var(--p2);
+  --cd: var(--p2-dark);
+}
+
+/* A player's colour: a small pennant. */
+.sb-mini {
+  flex: none;
+  width: 20px;
+  height: 18px;
+  background: linear-gradient(var(--c) 60%, var(--cd));
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.sb-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The idle player has no status: their name centers in the card. */
+.sb-sub:empty {
+  display: none;
+}
+
+/* A player's five ships as bars, the longer ones on top. A lost ship goes dark. */
+.sb-fleet {
+  flex: none;
+  width: 37px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 3px;
+}
+
+.sb-pl.right .sb-fleet {
+  justify-content: flex-end;
+}
+
+.sb-fleet i {
+  width: calc(var(--len) * 3.7px);
+  height: 7px;
+  border-radius: 4px;
+  background: var(--c);
+  transition: background-color 0.3s;
+}
+
+.sb-fleet i.lost {
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+/* ---------- water ---------- */
+
+.sb-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Out to the edges of the screen, so the grid can use the whole width. */
+  margin: 0 -12px;
+  /* The grid sizes itself to whatever room the bar, the cards and the dock leave. */
+  container-type: size;
+}
+
+/*
+ * Ten cells across the width, capped so the grid fits the height. On a phone
+ * it runs edge to edge. A cell is under a thumb wide (36 px at 360), so a tap
+ * only aims, and the "Fire" button shoots.
+ */
+.sb-sea {
+  --cell: min(calc(100cqw / 10), calc((100cqh - 8px) / 10), 56px);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, var(--cell));
+  grid-auto-rows: var(--cell);
+  margin: 0 auto;
+  background: linear-gradient(160deg, var(--sb-water), var(--sb-water-deep));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sb-cell {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 0 0 0.5px rgba(238, 250, 255, 0.13);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sb-cell.can {
+  cursor: pointer;
+}
+
+.sb-cell:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+/* A hull runs through its cells and rounds off at both ends. */
+.sb-cell.ship::before {
+  content: "";
+  position: absolute;
+  inset: 16% 0;
+  background: var(--c);
+  box-shadow: inset 0 -3px 0 var(--cd);
+}
+
+.sb-cell.ship.down::before {
+  inset: 0 16%;
+  box-shadow: inset -3px 0 0 var(--cd);
+}
+
+.sb-cell.ship:not(.down).a::before {
+  left: 10%;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.sb-cell.ship:not(.down).z::before {
+  right: 10%;
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.sb-cell.ship.down.a::before {
+  top: 10%;
+  border-top-left-radius: 999px;
+  border-top-right-radius: 999px;
+}
+
+.sb-cell.ship.down.z::before {
+  bottom: 10%;
+  border-bottom-left-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+/* A sunk ship is a dark wreck with its owner's colour round it. */
+.sb-cell.ship.sunk::before {
+  --edge: 2px;
+  background: var(--sb-wreck);
+  border: 0 solid color-mix(in srgb, var(--c) 70%, var(--sb-wreck));
+  box-shadow: none;
+}
+
+.sb-cell.ship.sunk:not(.down)::before {
+  border-top-width: var(--edge);
+  border-bottom-width: var(--edge);
+}
+
+.sb-cell.ship.sunk.down::before {
+  border-left-width: var(--edge);
+  border-right-width: var(--edge);
+}
+
+.sb-cell.ship.sunk:not(.down).a::before {
+  border-left-width: var(--edge);
+}
+
+.sb-cell.ship.sunk:not(.down).z::before {
+  border-right-width: var(--edge);
+}
+
+.sb-cell.ship.sunk.down.a::before {
+  border-top-width: var(--edge);
+}
+
+.sb-cell.ship.sunk.down.z::before {
+  border-bottom-width: var(--edge);
+}
+
+/* A shot: a ring on open water for a miss, a flame for a hit. */
+.sb-cell.miss::after,
+.sb-cell.hit::after {
+  content: "";
+  position: absolute;
+  inset: 31%;
+  border-radius: 50%;
+}
+
+.sb-cell.miss::after {
+  border: 2px solid rgba(238, 250, 255, 0.75);
+}
+
+.sb-cell.hit::after {
+  inset: 26%;
+  background: radial-gradient(circle, #fff3c9 0 28%, var(--sb-hit) 34%);
+  box-shadow: 0 0 0 2px rgba(11, 32, 48, 0.55);
+}
+
+/* The last shot fired at this water. */
+.sb-cell.last {
+  box-shadow: inset 0 0 0 2px rgba(238, 250, 255, 0.6);
+  z-index: 1;
+}
+
+.sb-cell.fresh.miss::after {
+  animation: sb-splash 0.5s ease-out;
+}
+
+.sb-cell.fresh.hit::after {
+  animation: sb-blast 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.sb-cell.sinking::before {
+  animation: sb-sink 0.7s ease-out;
+}
+
+@keyframes sb-splash {
+  from {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes sb-blast {
+  from {
+    transform: scale(3);
+    opacity: 0.2;
+  }
+}
+
+@keyframes sb-sink {
+  from {
+    background: var(--sb-hit);
+  }
+  40% {
+    background: #fff3c9;
+  }
+}
+
+/* The cell the player aims at: a ring that breathes until "Fire". */
+.sb-cell.aim {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: inset 0 0 0 3px var(--accent);
+  z-index: 2;
+  animation: sb-aim 1.1s ease-in-out infinite;
+}
+
+@keyframes sb-aim {
+  50% {
+    box-shadow:
+      inset 0 0 0 3px var(--accent),
+      0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+/* Online: where the friend aims on the viewer's own water, dimmed and still. */
+.sb-sea.small .sb-cell.aim {
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 60%, transparent);
+  animation: none;
+}
+
+/* The viewer's own water, small, beside the status line. */
+.sb-sea.small {
+  --cell: 13px;
+  margin: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent);
+}
+
+.sb-sea.small .sb-cell {
+  box-shadow: inset 0 0 0 0.5px rgba(238, 250, 255, 0.08);
+}
+
+.sb-sea.small .sb-cell.ship::before {
+  box-shadow: none;
+}
+
+.sb-sea.small .sb-cell.ship.sunk::before {
+  --edge: 1px;
+}
+
+.sb-sea.small .sb-cell.miss::after {
+  inset: 27%;
+  border-width: 1.5px;
+}
+
+.sb-sea.small .sb-cell.hit::after {
+  inset: 16%;
+  box-shadow: none;
+}
+
+.sb-sea.small .sb-cell.last {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* A shot that falls on the small grid rings out wide, so the eye finds it. */
+.sb-sea.small .sb-cell.last.fresh {
+  animation: sb-incoming 0.9s ease-out;
+}
+
+@keyframes sb-incoming {
+  from {
+    box-shadow: 0 0 0 26px color-mix(in srgb, var(--ink) 0%, transparent);
+  }
+  35% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--ink) 55%, transparent);
+  }
+}
+
+@media (min-width: 700px) {
+  .sb-sea.small {
+    --cell: 16px;
+  }
+}
+
+/* ---------- placing ---------- */
+
+.sb-place-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+  min-height: 60px;
+}
+
+.sb-place-head h2 {
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+/* Ships move under a finger here: the page must not scroll with them. */
+.sb-sea.yard {
+  touch-action: none;
+}
+
+.sb-sea.yard .sb-cell.ship {
+  cursor: grab;
+}
+
+/* The ship "Turn ship" turns. */
+.sb-sea.yard .sb-cell.picked::before {
+  background: color-mix(in srgb, var(--c) 78%, #fff);
+}
+
+/* A ship in the air leaves a faint mark where it lay, and a shadow where it would land. */
+.sb-sea.yard .sb-cell.lifted::before {
+  opacity: 0.3;
+}
+
+.sb-cell.ghost::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--c) 60%, transparent);
+  box-shadow: inset 0 0 0 2px var(--c);
+}
+
+.sb-cell.ghost.bad::after {
+  background: color-mix(in srgb, var(--sb-hit) 55%, transparent);
+  box-shadow: inset 0 0 0 2px var(--sb-hit);
+}
+
+.sb-hint {
+  min-height: 22px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sb-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#sb-place .sb-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 18px;
+}
+
+/* ---------- the "Pass to" card ---------- */
+
+.sb-cover {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 28px;
+  text-align: center;
+}
+
+.sb-cover .sb-mini {
+  width: 60px;
+  height: 54px;
+  margin-bottom: 8px;
+}
+
+.sb-cover h2 {
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.sb-cover p {
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sb-cover .btn {
+  max-width: 320px;
+  margin-top: 16px;
+}
+
+/* ---------- dock ---------- */
+
+/* The viewer's own fleet, the last shot in words, and the button that fires. */
+.sb-deck {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 0 18px;
+}
+
+.sb-own {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Clear of the ring round the small grid. */
+  padding: 0 2px 2px;
+}
+
+.sb-own small {
+  max-width: 130px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-act {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sb-status {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  border: 2px solid rgba(238, 250, 255, 0.14);
+  background: rgba(238, 250, 255, 0.05);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.sb-status span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The viewer is on turn: the line lights up. */
+.sb-status.go {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--ink);
+}
+
+.sb-dots {
+  flex: none;
+  display: flex;
+  gap: 5px;
+}
+
+.sb-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: sb-wait 1s ease-in-out infinite;
+}
+
+.sb-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.sb-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes sb-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.sb-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 18px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.sb-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.sb-why {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sb-note {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sb-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Solo: both players' game in numbers, one short row. */
+.sb-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 4px 0;
+}
+
+.sb-stats:empty {
+  display: none;
+}
+
+.sb-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sb-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-cell.fresh.miss::after,
+  .sb-cell.fresh.hit::after,
+  .sb-cell.sinking::before,
+  .sb-cell.aim,
+  .sb-sea.small .sb-cell.last.fresh,
+  .sb-dots i {
+    animation: none;
+  }
+}
+
+/* ---------- home ---------- */
+
+/* The session's two players, shown as the cards from the board. */
+#sb-home .sb-pl {
+  flex: none;
+}
+
+/* ---------- online ---------- */
+
+/* The your-turn alert drops in from the top of the play area, as golf's does. */
+.sb-toast {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  max-width: calc(100% - 16px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -12px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1),
+    opacity 0.2s,
+    visibility 0.35s;
+}
+
+.sb-toast.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.sb-banner {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--p1);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.sb-banner.ok {
+  border-color: var(--accent);
+}
+
+/* Keep the your-turn alert clear of a connection banner. */
+.sb-banner:not([hidden]) + .sb-toast {
+  top: 48px;
+}

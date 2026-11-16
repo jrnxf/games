@@ -1,0 +1,73 @@
+<!-- Dots and Boxes screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="db-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Dots and Boxes</span>
+  </div>
+  <form class="pad stack" id="db-form">
+    <p class="lead" id="db-lead"></p>
+    <div class="db-pl s0 on">
+      <i class="db-mini s0"></i>
+      <div><b class="db-name" id="db-name-0"></b><small class="db-sub" id="db-sub-0"></small></div>
+    </div>
+    <div class="db-pl s1 on">
+      <i class="db-mini s1"></i>
+      <div><b class="db-name" id="db-name-1"></b><small class="db-sub" id="db-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="db-start">Start</button>
+    <button class="btn outline" type="button" id="db-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Board -->
+<section class="screen" id="db-game" data-screen>
+  <div class="bar">
+    <button class="back" id="db-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Dots and Boxes</span>
+    <!-- Games won, once there is one. -->
+    <span class="db-tally" id="db-tally" aria-label="Games won"></span>
+  </div>
+  <div class="db-players">
+    <div class="db-pl s0" id="db-pl-0">
+      <i class="db-mini s0"></i>
+      <div><b class="db-name"></b><small class="db-sub"></small></div>
+      <span class="db-count" aria-label="Boxes"></span>
+    </div>
+    <div class="db-pl s1 right" id="db-pl-1">
+      <i class="db-mini s1"></i>
+      <div><b class="db-name"></b><small class="db-sub"></small></div>
+      <span class="db-count" aria-label="Boxes"></span>
+    </div>
+  </div>
+  <div class="db-play">
+    <div class="db-banner" id="db-banner" role="status" hidden></div>
+    <div class="db-toast" id="db-toast" role="status"></div>
+    <div class="db-board" id="db-board" role="group" aria-label="Board"></div>
+  </div>
+  <div class="db-dock">
+    <div class="db-status" id="db-status">
+      <p role="status">
+        <span id="db-status-text"></span
+        ><span class="db-dots" id="db-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </p>
+    </div>
+    <div class="db-result" id="db-result" hidden>
+      <h2 id="db-result-title" role="status"></h2>
+      <p class="db-why" id="db-why"></p>
+      <p class="db-note" id="db-note" hidden></p>
+      <!-- Solo: the computer's game in numbers. -->
+      <dl class="db-stats" id="db-stats"></dl>
+      <div class="db-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="db-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</section>

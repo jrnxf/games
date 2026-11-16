@@ -1,0 +1,75 @@
+<!-- Ultimate Tic-Tac-Toe screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="ut-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Ultimate Tic-Tac-Toe</span>
+  </div>
+  <form class="pad stack" id="ut-form">
+    <p class="lead" id="ut-lead"></p>
+    <div class="ut-pl on">
+      <i class="ut-mini s0"></i>
+      <div><b class="ut-name" id="ut-name-0"></b><small class="ut-sub" id="ut-sub-0"></small></div>
+    </div>
+    <div class="ut-pl on">
+      <i class="ut-mini s1"></i>
+      <div><b class="ut-name" id="ut-name-1"></b><small class="ut-sub" id="ut-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="ut-start">Start</button>
+    <button class="btn outline" type="button" id="ut-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Board -->
+<section class="screen" id="ut-game" data-screen>
+  <div class="bar">
+    <button class="back" id="ut-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Ultimate Tic-Tac-Toe</span>
+    <!-- Games won, once there is one. -->
+    <span class="ut-tally" id="ut-tally" aria-label="Games won"></span>
+  </div>
+  <div class="ut-players">
+    <div class="ut-pl" id="ut-pl-0">
+      <i class="ut-mini s0"></i>
+      <div><b class="ut-name"></b><small class="ut-sub"></small></div>
+      <span class="ut-count" aria-label="Boards won"></span>
+    </div>
+    <div class="ut-pl right" id="ut-pl-1">
+      <i class="ut-mini s1"></i>
+      <div><b class="ut-name"></b><small class="ut-sub"></small></div>
+      <span class="ut-count" aria-label="Boards won"></span>
+    </div>
+  </div>
+  <div class="ut-play">
+    <div class="ut-banner" id="ut-banner" role="status" hidden></div>
+    <div class="ut-toast" id="ut-toast" role="status"></div>
+    <div class="ut-board" id="ut-board" role="group" aria-label="Board"></div>
+  </div>
+  <div class="ut-dock">
+    <!-- A tap on a spot only aims: a spot is too small for a thumb, so "Place" makes the mark. -->
+    <div class="ut-act" id="ut-act">
+      <p class="ut-status" id="ut-status" role="status">
+        <span id="ut-status-text"></span
+        ><span class="ut-dots" id="ut-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </p>
+      <button class="btn primary" type="button" id="ut-place">Place</button>
+    </div>
+    <div class="ut-result" id="ut-result" hidden>
+      <h2 id="ut-result-title" role="status"></h2>
+      <p class="ut-why" id="ut-why"></p>
+      <p class="ut-note" id="ut-note" hidden></p>
+      <!-- Solo: the computer's game in numbers. -->
+      <dl class="ut-stats" id="ut-stats"></dl>
+      <div class="ut-result-row">
+        <button class="btn outline" data-menu>All games</button>
+        <button class="btn primary" id="ut-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</section>
