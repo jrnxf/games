@@ -4,7 +4,7 @@
 // the computer (with a reload on its turn), a pass & play win, the running
 // score, a reload mid-game, the trip back to the menu, and playing offline.
 // The other board games play the same way from their own files (reversi.ts,
-// dots-and-boxes.ts).
+// dots-and-boxes.ts, mancala.ts).
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
@@ -12,6 +12,7 @@ import { computerMove } from "../../src/games/connect-four/core/ai.ts";
 import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
 import { Browser, check, serverPort, SHOTS, startServer, VIEWPORT, waitFor } from "./browser.ts";
 import { boxesOffline, boxesPassAndPlay, boxesSolo } from "./dots-and-boxes.ts";
+import { mancalaOffline, mancalaPassAndPlay, mancalaSolo } from "./mancala.ts";
 import { reversiOffline, reversiPassAndPlay, reversiSolo } from "./reversi.ts";
 
 const PORT = await serverPort();
@@ -270,6 +271,7 @@ try {
 
   await reversiSolo(phone);
   await boxesSolo(phone);
+  await mancalaSolo(phone);
 
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
@@ -354,6 +356,7 @@ try {
 
   await reversiPassAndPlay(phone, ORIGIN);
   await boxesPassAndPlay(phone, ORIGIN);
+  await mancalaPassAndPlay(phone, ORIGIN);
 
   // Mini golf opens from the same menu, and the browser back button returns.
   phone.click('#tiles a[href="/mini-golf"]');
@@ -402,6 +405,7 @@ try {
   phone.screenshot("c4-offline");
   await reversiOffline(phone, ORIGIN);
   await boxesOffline(phone, ORIGIN);
+  await mancalaOffline(phone, ORIGIN);
   console.log("menu e2e passed");
 } finally {
   phone.stop();

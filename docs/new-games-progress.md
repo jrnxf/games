@@ -27,8 +27,8 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/mancala.test.ts`)
 - [x] Computer: alpha-beta on store difference, depth by level, capped by positions + tests (`core/ai.ts`, `tests/unit/mancala-ai.test.ts`)
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, sowing animated seed by seed
-- [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests (`tests/unit/mancala-host.test.ts`), online client code (not yet played between two phones)
-- [ ] E2E: `tests/e2e/mancala.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked
+- [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests (`tests/unit/mancala-host.test.ts`), online client code
+- [x] E2E: `tests/e2e/mancala.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
 - [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 4. Sea Battle (`sea-battle`)
@@ -67,4 +67,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Mancala online: `settle` sows the friend's move when the host's answer is one move longer than the board, keeps falling seeds on the echo of this phone's own move, and has the same `heard` rule as Dots and Boxes for a second move in an extra turn. The e2e must play an extra turn on a slow link, a capture, and a rematch.
 
-Next: the Mancala e2e (`tests/e2e/mancala.ts`, called from `menu.ts` and `online.ts`): solo against Hard, pass & play with the fixture games in `tests/unit/mancala-games.ts`, offline, and online between two phones.
+- Mancala e2e: the pass & play part plays `QUICK` (a capture, an extra turn, a last sweep, 28 to 20), then `DRAW` with the other starter, then two moves of `SWEPT` and a reload. The online part plays `QUICK` to a result, then `SWEPT` on a slow link after the rematch. `tap` waits for the seeds to land (`!busy`) on every phone, and `tapAll` taps inside the page as soon as the board unlocks. A `MutationObserver` on the status bar records every line it shows, so the extra-turn message is checked against the moves played. The two phones found no bug in the online client.
+
+Next: the Mancala README entry (with the Test section lines) and its `docs/decisions.md` section: the upright board, the near seat online, the move that saves before its seeds fall, the capture rule, the search and its 150,000-position cap, the online extra-turn settle rule, protocol 7. Then start Sea Battle with its core rules.
