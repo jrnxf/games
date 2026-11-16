@@ -17,8 +17,8 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - [x] Core rules + unit tests (`core/board.ts`, `tests/unit/dots-and-boxes.test.ts`)
 - [x] Computer: plain rules on Easy and Medium, a search of safe lines and of the endgame on Hard, capped by positions + tests (`core/ai.ts`, `tests/unit/dots-and-boxes-ai.test.ts`)
-- [ ] Client, `info.ts`, `GAMES`
-- [ ] Online host, protocol, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests, online client
+- [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score
+- [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests (`tests/unit/dots-and-boxes-host.test.ts`), online client code
 - [ ] E2E: `tests/e2e/dots-and-boxes.ts`
 - [ ] README entry and `docs/decisions.md` section
 
@@ -48,4 +48,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Dots and Boxes computer: `think(board, level, seed)` returns `{ line, positions, ms, exact }`. Easy takes a box on offer half the time, so it looks careless and not broken. Medium takes every box and gives away the fewest. Hard searches once 24 or fewer safe lines are left: one pass that scores the chains and loops left when the safe lines run out (the long-chain rule), then one pass to the end of the game (double-deals), each capped at 40,000 positions, about 45 ms at worst on a desktop. Over the budget it plays like Medium. The search never gives boxes away while a safe line is left. The endgame matches a brute-force solver. Write these choices in `docs/decisions.md` at the README step.
 
-Next: the Dots and Boxes client (`client/screens.html`, `styles.css`, `main.ts`), `info.ts` and `GAMES`, together with the online host, protocol 6 and `worker/hosts.ts`, because `tests/unit/games.test.ts` needs every game in `GAMES` to play online.
+- Dots and Boxes client: ids and classes start with `db-`. Each line is a button with a diamond tap area (`clip-path`), from its two dots to the middle of the box on each side, so the diamonds tile the page and a tap draws the nearest line. A move has no busy wait: the new line and the closed boxes carry a `fresh` class that a later redraw keeps. The computer waits 500 ms, and 260 ms before each further line of an extra turn. The test hook is `window.__boxes.state()`, and line `i` is `document.querySelectorAll("#db-board .db-line")[i]`. Online has no dimmed pending choice, as in Reversi: one tap draws the line. Write the diamond tap area and this in `docs/decisions.md` at the README step.
+
+Next: the Dots and Boxes e2e (`tests/e2e/dots-and-boxes.ts` with solo, pass & play, offline and online parts, called from `menu.ts` and `online.ts`). Two phones have not yet played Dots and Boxes online. Then the README entry and the `docs/decisions.md` section.
