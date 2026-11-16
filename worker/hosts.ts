@@ -6,6 +6,7 @@ import { boxesHost } from "../src/games/dots-and-boxes/core/host.ts";
 import { mancalaHost } from "../src/games/mancala/core/host.ts";
 import { golfHost } from "../src/games/mini-golf/core/host.ts";
 import { reversiHost } from "../src/games/reversi/core/host.ts";
+import { seaHost } from "../src/games/sea-battle/core/host.ts";
 import type { Hosts } from "../src/party/host.ts";
 
 export const HOSTS: Hosts = {
@@ -14,4 +15,5 @@ export const HOSTS: Hosts = {
   reversi: reversiHost,
   "dots-and-boxes": boxesHost,
   mancala: mancalaHost,
+  "sea-battle": seaHost,
 };
