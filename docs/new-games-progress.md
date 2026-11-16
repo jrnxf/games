@@ -39,7 +39,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Online host: `core/protocol.ts`, `core/host.ts` (each phone gets only its own fleet and the shot results), `worker/hosts.ts`, `PROTOCOL` bump (8), host tests with no-leak tests (`tests/unit/sea-battle-host.test.ts`)
 - [x] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, placement sent to the host, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
 - [x] E2E online: `seaOnline` in `tests/e2e/sea-battle.ts`, called from `tests/e2e/online.ts`
-- [ ] E2E menu: solo, pass & play and offline parts in `tests/e2e/sea-battle.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [x] E2E menu: solo, pass & play and offline parts in `tests/e2e/sea-battle.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
 - [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 5. Ultimate Tic-Tac-Toe (`ultimate-tic-tac-toe`)
@@ -94,4 +94,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - The rematch line under a result keeps its place with a non-breaking space (`"\u00a0"`). A plain space collapses, and the board jumps when the friend asks. Dots and Boxes and Mancala had the plain space: fixed.
 
-Next: Sea Battle e2e for the menu suite. Add a solo part (place a fleet with a drag, a turn and "Random", play to the end against the computer with a reload on its turn), a pass & play part (the "Pass to" card, a whole game with `ROWS`, `COLUMNS` and `rout`, a rematch, a reload) and an offline part to `tests/e2e/sea-battle.ts`, call them from `tests/e2e/menu.ts`, and look at the screenshots at 390x844, 360x740 and a tablet width. Then the README entry and the `docs/decisions.md` section.
+- Sea Battle e2e menu: `seaSolo`, `seaPassAndPlay` and `seaOffline` in `tests/e2e/sea-battle.ts`. The test reads both fleets from the hook, so it needs no fixed layout: in solo Zoe sinks the Skiff and then fires at open water until Hard wins, and in pass & play Zoe sinks Kai's fleet in 17 shots while Kai misses. `finger` moves a ship with `PointerEvent`s on `#sb-yard`, `hand` checks the "Pass to" card and taps "I'm ready", and `volley` fires a run of shots inside the page. `fits` checks the placement and game screens at 360x740 and 820x1180.
+
+Next: the Sea Battle README entry (and its Test section) and the `docs/decisions.md` section, from the notes above. Then start Ultimate Tic-Tac-Toe with its core rules and unit tests.

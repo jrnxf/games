@@ -4,7 +4,7 @@
 // the computer (with a reload on its turn), a pass & play win, the running
 // score, a reload mid-game, the trip back to the menu, and playing offline.
 // The other board games play the same way from their own files (reversi.ts,
-// dots-and-boxes.ts, mancala.ts).
+// dots-and-boxes.ts, mancala.ts, sea-battle.ts).
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
@@ -14,6 +14,7 @@ import { Browser, check, serverPort, SHOTS, startServer, VIEWPORT, waitFor } fro
 import { boxesOffline, boxesPassAndPlay, boxesSolo } from "./dots-and-boxes.ts";
 import { mancalaOffline, mancalaPassAndPlay, mancalaSolo } from "./mancala.ts";
 import { reversiOffline, reversiPassAndPlay, reversiSolo } from "./reversi.ts";
+import { seaOffline, seaPassAndPlay, seaSolo } from "./sea-battle.ts";
 
 const PORT = await serverPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
@@ -269,6 +270,7 @@ try {
   await reversiSolo(phone);
   await boxesSolo(phone);
   await mancalaSolo(phone);
+  await seaSolo(phone);
 
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
@@ -354,6 +356,7 @@ try {
   await reversiPassAndPlay(phone, ORIGIN);
   await boxesPassAndPlay(phone, ORIGIN);
   await mancalaPassAndPlay(phone, ORIGIN);
+  await seaPassAndPlay(phone, ORIGIN);
 
   // Mini golf opens from the same menu, and the browser back button returns.
   phone.click('#tiles a[href="/mini-golf"]');
@@ -403,6 +406,7 @@ try {
   await reversiOffline(phone, ORIGIN);
   await boxesOffline(phone, ORIGIN);
   await mancalaOffline(phone, ORIGIN);
+  await seaOffline(phone, ORIGIN);
   console.log("menu e2e passed");
 } finally {
   phone.stop();

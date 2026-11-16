@@ -590,7 +590,11 @@ yardEl.addEventListener("pointerdown", (e) => {
     moved: false,
     ghost: draft[ship]!,
   };
-  yardEl.setPointerCapture(e.pointerId);
+  try {
+    yardEl.setPointerCapture(e.pointerId);
+  } catch {
+    // Synthetic pointers in tests cannot be captured.
+  }
   $("sb-hint").textContent = HINT;
   drawPlace();
 });
