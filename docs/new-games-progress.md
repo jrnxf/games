@@ -29,11 +29,16 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, sowing animated seed by seed
 - [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests (`tests/unit/mancala-host.test.ts`), online client code
 - [x] E2E: `tests/e2e/mancala.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
-- [ ] README entry (and its Test section) and `docs/decisions.md` section
+- [x] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 4. Sea Battle (`sea-battle`)
 
-- [ ] All steps
+- [x] Core rules + unit tests (`core/board.ts`, `tests/unit/sea-battle.test.ts`)
+- [ ] Computer: Easy fires at random, Medium hunts then targets, Hard uses a probability density map + tests (`core/ai.ts`, `tests/unit/sea-battle-ai.test.ts`)
+- [ ] Client: placement (drag, rotate, Random), solo and pass & play with the hand-off card, `info.ts`, added to `GAMES`, save and running score
+- [ ] Online: `core/protocol.ts`, `core/host.ts` (each phone gets only its own fleet and the shot results), `worker/hosts.ts`, `PROTOCOL` bump (8), host tests with a no-leak test, online client code
+- [ ] E2E: `tests/e2e/sea-battle.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 5. Ultimate Tic-Tac-Toe (`ultimate-tic-tac-toe`)
 
@@ -69,4 +74,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Mancala e2e: the pass & play part plays `QUICK` (a capture, an extra turn, a last sweep, 28 to 20), then `DRAW` with the other starter, then two moves of `SWEPT` and a reload. The online part plays `QUICK` to a result, then `SWEPT` on a slow link after the rematch. `tap` waits for the seeds to land (`!busy`) on every phone, and `tapAll` taps inside the page as soon as the board unlocks. A `MutationObserver` on the status bar records every line it shows, so the extra-turn message is checked against the moves played. The two phones found no bug in the online client.
 
-Next: the Mancala README entry (with the Test section lines) and its `docs/decisions.md` section: the upright board, the near seat online, the move that saves before its seeds fall, the capture rule, the search and its 150,000-position cap, the online extra-turn settle rule, protocol 7. Then start Sea Battle with its core rules.
+- Sea Battle board: a `Ship` is `{ cell, len, down }` with `cell` its top or left end, and a `Fleet` lists one ship per length in `FLEET` order (5, 4, 3, 3, 2). Ships may touch but not overlap (`validFleet`). A game is its starter, the two fleets and the cells fired at, turn about: a hit gives no extra shot. `seen[seat]` is a `Sight`: the marks (`"hit"`, `"miss"`, null) on the other's water and the ships sunk there. A sight never holds a ship that is afloat, so the computer must take a `Sight`, not a `Board`, and the online host must send each phone its own fleet plus the two sights. `fire` sets `last` (`{ cell, hit, sunk }`). The winner keeps the turn. There is no draw. `randomFleet(rand)` takes a `rng(seed)` stream. Fixtures (`ROWS`, `COLUMNS`, `decks`, `rout`) are in `tests/unit/sea-battle-games.ts`. Write the touching-ships rule, the no-extra-shot rule and the `Sight` model in `docs/decisions.md` at the README step.
+
+Next: the Sea Battle computer in `core/ai.ts`. It takes a `Sight` (never the other fleet), a level and a seed. Easy fires at random. Medium hunts on a checkerboard and then targets the cells next to a hit. Hard counts, for every cell, the placements of the ships still afloat that agree with the marks (a density map), and weights placements through unsunk hits. Tests: each level finishes a game, Hard needs fewer shots than Medium and Medium fewer than Easy over many seeded fleets, and no level reads the fleet.
