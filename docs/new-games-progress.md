@@ -20,11 +20,16 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score
 - [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests (`tests/unit/dots-and-boxes-host.test.ts`), online client code
 - [x] E2E: `tests/e2e/dots-and-boxes.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
-- [ ] README entry and `docs/decisions.md` section
+- [x] README entry and `docs/decisions.md` section
 
 ## 3. Mancala (`mancala`)
 
-- [ ] All steps
+- [x] Core rules + unit tests (`core/board.ts`, `tests/unit/mancala.test.ts`)
+- [ ] Computer: alpha-beta on store difference, depth by level, capped by positions + tests (`core/ai.ts`, `tests/unit/mancala-ai.test.ts`)
+- [ ] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, sowing animated seed by seed
+- [ ] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (7), host tests, online client code
+- [ ] E2E: `tests/e2e/mancala.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked
+- [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 ## 4. Sea Battle (`sea-battle`)
 
@@ -54,4 +59,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Dots and Boxes e2e: `WHOLE` in `tests/e2e/dots-and-boxes.ts` is `GIFT` plus every other line in line order, and the second player wins 15 to 10. `rushOut` taps each run of lines by one player inside that player's page.
 
-Next: the Dots and Boxes README entry and `docs/decisions.md` section (also name Dots and Boxes in the README's Test section). Then Mancala, from its core rules.
+- Mancala board: 14 holes in sowing order: seat 0's pits 0 to 5 from its left, its store (6), seat 1's pits (7 to 12), its store (13). A move is a pit 0 to 5 counted from its mover's left, so the same moves play the same game with the seats swapped. `sowing(b, pit)` gives the hole each seed falls in, for the client's seed-by-seed animation. `play` sets `again`, `captured` (seeds taken, the last seed included) and `swept` (seeds each side keeps at the end). A capture needs seeds in the pit opposite: a last seed opposite an empty pit stays. Write that rules choice in `docs/decisions.md` at the README step. Fixture games (a quick win, a sweep, a 24-24 draw, an end with nothing swept) are in `tests/unit/mancala-games.ts`.
+
+Next: the Mancala computer (`core/ai.ts`): alpha-beta on store difference, with extra turns inside the search, capped by positions like Reversi.
