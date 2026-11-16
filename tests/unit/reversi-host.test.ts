@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { boardOf, move, rematch, reversiHost, startReversi } from "../../src/games/reversi/core/host.ts";
 import { parseReversiMessage, type ReversiMatch } from "../../src/games/reversi/core/protocol.ts";
 import { claimSeat, createParty, pick, receive, sync } from "../../src/party/party.ts";
+import { DRAW, PASS, WIPEOUT } from "./reversi-games.ts";
 
 /** Plays `cells` through the host, each by the seat on turn, from a fresh match `first` opened. */
 function play(cells: number[], first: 0 | 1 = 0): ReversiMatch {
@@ -12,17 +13,6 @@ function play(cells: number[], first: 0 | 1 = 0): ReversiMatch {
   }
   return m;
 }
-
-// Legal games from the opening, as in reversi.test.ts.
-/** The eighth disc leaves the first player with no move. */
-const PASS = [37, 45, 19, 38, 39, 31, 53, 47];
-/** The first player takes every disc in nine moves. */
-const WIPEOUT = [26, 34, 45, 19, 10, 17, 33, 25, 24];
-const DRAW = [
-  19, 20, 13, 12, 21, 34, 44, 26, 4, 22, 31, 3, 14, 6, 17, 30, 2, 42, 43, 52, 53, 54, 39, 11, 50, 49, 62, 18,
-  46, 38, 10, 25, 51, 29, 56, 16, 23, 57, 24, 59, 8, 37, 60, 9, 1, 15, 5, 47, 45, 61, 7, 0, 58, 32, 63, 55,
-  41, 48, 40, 33,
-];
 
 describe("moves", () => {
   it("starts with the player who opened the game, on the opening board", () => {

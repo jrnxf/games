@@ -3,12 +3,14 @@
 // Covers picking how you play, games a mode can't run, a solo game against
 // the computer (with a reload on its turn), a pass & play win, the running
 // score, a reload mid-game, the trip back to the menu, and playing offline.
+// The other board games play the same way from their own files (reversi.ts).
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
 import { computerMove } from "../../src/games/connect-four/core/ai.ts";
 import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
 import { Browser, check, serverPort, SHOTS, startServer, VIEWPORT, waitFor } from "./browser.ts";
+import { reversiOffline, reversiPassAndPlay, reversiSolo } from "./reversi.ts";
 
 const PORT = await serverPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
@@ -264,6 +266,8 @@ try {
   phone.click("#c4-home [data-menu]");
   await waitFor("menu", () => phone.visible("games"));
 
+  await reversiSolo(phone);
+
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
   phone.click('[data-mode="pass-and-play"]');
@@ -345,6 +349,8 @@ try {
     "the menu theme is back",
   );
 
+  await reversiPassAndPlay(phone, ORIGIN);
+
   // Mini golf opens from the same menu, and the browser back button returns.
   phone.click('#tiles a[href="/mini-golf"]');
   await waitFor("golf home", () => phone.visible("home"));
@@ -390,6 +396,7 @@ try {
   await waitFor("resumed offline", () => phone.visible("c4-game"));
   check(c4().moves.length === 6, "offline: Connect Four loads from the service worker and resumes");
   phone.screenshot("c4-offline");
+  await reversiOffline(phone, ORIGIN);
   console.log("menu e2e passed");
 } finally {
   phone.stop();
