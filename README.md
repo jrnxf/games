@@ -14,6 +14,10 @@ Small games for your phone, in one web app you add to your home screen: no app s
 
 - **Online**: red is the party's maker, yellow the friend, and whoever picked the game drops first. On your friend's turn you see their chip, dimmed, over the column they aim at, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
 
+**Reversi** (`/reversi`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. Faint dots mark where you can play: tap one to put a disc there, and every disc you outflank turns over to your colour, one after another. Each player's card shows their disc count. A player with no move passes, and the game says so. It ends when neither player can move, and the most discs wins. You go first in the first game, then the first move alternates. The game saves after every move and keeps a running score. In solo, the result recaps the computer's game: how many positions it checked and how long it thought.
+
+- **Online**: dark is the party's maker, light the friend, and whoever picked the game plays first. You get a "your turn" alert when it is yours, and after a pass both phones say who plays again. A rematch waits until both players tap it, and the score lasts as long as the party.
+
 ## Stack
 
 TypeScript everywhere, no framework.
@@ -44,12 +48,12 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; Connect Four rules, computer and host
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four and Reversi
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
-pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four to a win and a rematch, menu, reconnect, leave
+pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four and Reversi to a win and a rematch, menu, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu      # the start screens, the menu, Connect Four solo vs the computer and pass & play, resume, rematch, offline
+pnpm test:menu      # the start screens, the menu, Connect Four and Reversi solo vs the computer and pass & play, resume, rematch, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.

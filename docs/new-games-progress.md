@@ -11,11 +11,16 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score
 - [x] Online: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (5), host tests (`tests/unit/reversi-host.test.ts`), online client code
 - [x] E2E: `tests/e2e/reversi.ts`, called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
-- [ ] README entry and `docs/decisions.md` section
+- [x] README entry and `docs/decisions.md` section
 
 ## 2. Dots and Boxes (`dots-and-boxes`)
 
-- [ ] All steps
+- [x] Core rules + unit tests (`core/board.ts`, `tests/unit/dots-and-boxes.test.ts`)
+- [ ] Computer + tests
+- [ ] Client, `info.ts`, `GAMES`
+- [ ] Online host, protocol, `worker/hosts.ts`, `PROTOCOL` bump (6), host tests, online client
+- [ ] E2E: `tests/e2e/dots-and-boxes.ts`
+- [ ] README entry and `docs/decisions.md` section
 
 ## 3. Mancala (`mancala`)
 
@@ -39,4 +44,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Reversi has no dimmed pending choice online: one tap plays a disc, so there is no aim to show. Write this in `docs/decisions.md` at the README step, with the edge-to-edge board (44 px cells at 360 px) and the move that saves before its discs turn.
 
-Next: the Reversi README entry and its `docs/decisions.md` section (the position budget, no dimmed pending choice, the edge-to-edge board, the move that saves before its discs turn). Then start Dots and Boxes with its core rules and unit tests.
+- Dots and Boxes board: 60 lines, the 30 horizontal ones first (`across(row, col)`), then the 30 vertical ones (`down(row, col)`). A game is its starter plus the lines drawn. `play` keeps the turn with the mover and sets `again` when a line closes a box. 25 boxes can't split evenly, so there is no draw. Fixture games are in `tests/unit/dots-and-boxes-games.ts`.
+
+Next: the Dots and Boxes computer (`core/ai.ts`): Easy avoids the third side of a box, Medium also takes free boxes, Hard plays the long-chain rule and double-dealing in the endgame, with tests.
