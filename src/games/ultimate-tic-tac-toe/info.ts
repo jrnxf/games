@@ -3,8 +3,7 @@ import type { GameInfo } from "../../shell/games.ts";
 export default {
   id: "ultimate-tic-tac-toe",
   title: "Ultimate Tic-Tac-Toe",
-  // Online comes with its host (core/host.ts).
-  modes: { solo: "computer", "pass-and-play": true, online: false },
+  modes: { solo: "computer", "pass-and-play": true, online: true },
   themeColor: "#2a1626",
   tile: ["#e8508f", "#9c2a66"],
   art: `<rect x="22" y="7" width="56" height="56" rx="8" fill="#5c173d"/>

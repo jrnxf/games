@@ -1,12 +1,16 @@
-// Ultimate Tic-Tac-Toe's entry: pass-and-play on one phone, or solo against
-// the computer. The small boards the player on turn may play in are lit. A
-// tap on a spot aims at it, and "Place" (or a second tap on the same spot)
-// makes the mark. The game saves after every move, so a reload or a trip to
-// the menu picks up where it left off, the computer's pending move included.
+// Ultimate Tic-Tac-Toe's entry: pass-and-play on one phone, solo against the
+// computer, or online with a friend in a party. The small boards the player
+// on turn may play in are lit. A tap on a spot aims at it, and "Place" (or a
+// second tap on the same spot) makes the mark. Offline, the game saves after
+// every move, so a reload or a trip to the menu picks up where it left off,
+// the computer's pending move included. Online, the host on the server holds
+// the game (core/host.ts) and this phone draws what it says.
 
 import "./styles.css";
 import screens from "./screens.html?raw";
 
+import { ConnectionBanner } from "../../../shell/banner.ts";
+import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
 import type { GameSession } from "../../../shell/session.ts";
 import { store } from "../../../shell/storage.ts";
@@ -29,6 +33,7 @@ import {
   type Board,
   type Seat,
 } from "../core/board.ts";
+import type { UltimateClientMessage, UltimateMatch, UltimateServerMessage } from "../core/protocol.ts";
 
 document.body.insertAdjacentHTML("beforeend", screens);
 
@@ -90,11 +95,29 @@ let thinkTimer = 0;
 /** Solo: the numbers behind each of the computer's moves this game. */
 let notes: Note[] = [];
 
+/** Online: the party's channel for this game, and this phone's seat (X is 0, O is 1). */
+let channel: Channel<UltimateServerMessage, UltimateClientMessage> | null = null;
+let me: Seat = 0;
+/** Online: the last match the host sent. */
+let latest: UltimateMatch | null = null;
+/** Online: the move count a mark this phone sent was aimed from, until the host answers it. */
+let pending: number | null = null;
+/** Online: the spot the friend aims at, shown dimmed while they are on turn. */
+let foeAim: number | null = null;
+/** Online: whether the last board drawn was this phone's turn, for the your-turn alert. */
+let wasMine = false;
+let banner: ConnectionBanner | null = null;
+let toastTimer = 0;
+
 const other = (seat: Seat) => (1 - seat) as Seat;
 /** Solo, on the computer's turn: input waits for its mark. */
 const thinking = () => solo && !isOver(board) && board.turn === COMPUTER;
+/** Online, while the friend is on turn or the host has not sent the game yet. */
+const waiting = () => channel !== null && (latest === null || (!isOver(board) && board.turn !== me));
+/** Online, while this phone has no connection: nothing can be sent. */
+const offline = () => channel !== null && !channel.connected;
 /** No taps from the player right now. */
-const locked = () => isOver(board) || thinking();
+const locked = () => isOver(board) || thinking() || waiting() || offline();
 
 const mark = (seat: Seat, cls = "") =>
   `<svg class="ut-mark s${seat}${cls}" viewBox="0 0 24 24" aria-hidden="true">${SHAPES[seat]}</svg>`;
@@ -139,6 +162,8 @@ function cleanName(raw: string, fallback: string): string {
 const saveKey = () => (solo ? "solo" : "game");
 
 function persist() {
+  // Online, the game lives on the server.
+  if (channel) return;
   const saved: Saved = { names, starter: board.starter, moves: board.moves, wins };
   if (solo) Object.assign(saved, { level, seed, notes });
   save(saveKey(), JSON.stringify(saved));
@@ -179,6 +204,8 @@ function savedGame(): (Saved & { board: Board; seed: number; notes: Note[] }) | 
 function drawBoard(from: Board | null = null) {
   const open = new Set(locked() ? [] : openBoards(board));
   const last = board.moves.at(-1) ?? -1;
+  // Online, the friend's aim shows while this phone waits for their mark.
+  const theirs = waiting() && !isOver(board) ? foeAim : null;
   boardEl.dataset.turn = String(board.turn);
   boardEl.classList.toggle("over", isOver(board));
   smalls.forEach((el, b) => {
@@ -204,6 +231,7 @@ function drawBoard(from: Board | null = null) {
     let html = "";
     if (seat !== null) html = mark(seat, from && from.cells[i] === null ? " fresh" : "");
     else if (i === aim) html = mark(board.turn, " ghost");
+    else if (i === theirs) html = mark(board.turn, " ghost theirs");
     const key = `${html}${can ? "c" : ""}${i === last ? "l" : ""}`;
     if (drawn[i] === key) return;
     drawn[i] = key;
@@ -211,7 +239,16 @@ function drawBoard(from: Board | null = null) {
     el.classList.toggle("can", can);
     el.classList.toggle("last", i === last);
     el.classList.toggle("aim", i === aim && seat === null);
-    const what = seat !== null ? MARKS[seat] : i === aim ? "your aim" : can ? "you can play here" : "empty";
+    const what =
+      seat !== null
+        ? MARKS[seat]
+        : i === aim
+          ? "your aim"
+          : i === theirs
+            ? `${names[board.turn]}'s aim`
+            : can
+              ? "you can play here"
+              : "empty";
     el.setAttribute("aria-label", `${PLACES[boardOf(i)]} board, ${PLACES[spotOf(i)]} spot: ${what}`);
   });
 }
@@ -221,7 +258,11 @@ function status(seat: Seat): string {
   if (board.winner === seat) return "Winner";
   if (board.draw) return "Draw";
   if (solo && seat === COMPUTER) return LEVEL_LABELS[level];
-  return !isOver(board) && board.turn === seat ? "Your turn" : "";
+  const on = !isOver(board) && board.turn === seat;
+  if (!channel) return on ? "Your turn" : "";
+  // Online, this phone's card says which mark is yours.
+  if (seat !== me) return on && latest ? "Their turn" : "";
+  return on && latest ? "Your turn" : "You";
 }
 
 function drawPlayers() {
@@ -238,17 +279,23 @@ function drawPlayers() {
     wins[0] + wins[1] > 0
       ? `<i class="ut-mini s0"></i><b>${wins[0]}</b>–<b>${wins[1]}</b><i class="ut-mini s1"></i>`
       : "";
+  const wait = thinking() || waiting();
   $("ut-act").hidden = over;
-  $("ut-status").classList.toggle("go", !thinking() && !over);
-  $("ut-dots").hidden = !thinking();
-  $<HTMLButtonElement>("ut-place").disabled = aim === null;
+  $("ut-status").classList.toggle("go", !wait && !over);
+  $("ut-dots").hidden = !wait;
+  $<HTMLButtonElement>("ut-place").disabled = aim === null || locked();
   // A hidden line keeps its words, so it never flashes as it goes.
   if (!over) {
     // After the first mark, a free choice of board is news: the last mark sent the player to a closed board.
     const free = board.target === null && board.moves.length > 0 ? " · any board" : "";
-    $("ut-status-text").textContent = thinking()
-      ? "Computer is thinking"
-      : (solo ? "Your turn" : `${names[board.turn]}'s turn`) + free;
+    $("ut-status-text").textContent =
+      channel && !latest
+        ? "Connecting"
+        : thinking()
+          ? "Computer is thinking"
+          : wait
+            ? `Waiting for ${names[other(me)]}`
+            : (solo || channel ? "Your turn" : `${names[board.turn]}'s turn`) + free;
   }
   $("ut-result").hidden = !over;
   if (over) drawResult();
@@ -257,15 +304,27 @@ function drawPlayers() {
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const fmtMs = (ms: number) => `${ms < 10 ? ms.toFixed(1) : Math.round(ms)} ms`;
 
-/** The end of a game: who won and why, and the computer's numbers in solo. */
+/** The end of a game: who won and why, the computer's numbers in solo, and online, who wants a rematch. */
 function drawResult() {
   const w = board.winner;
-  $("ut-result-title").textContent = w === null ? "It's a draw" : `${names[w]} wins!`;
+  $("ut-result-title").textContent =
+    w === null ? "It's a draw" : channel && w === me ? "You win!" : `${names[w]} wins!`;
   const boards = count(board.won);
   $("ut-why").textContent =
     w === null
       ? `No board left to play, and no three in a row: ${boards[0]} to ${boards[1]}.`
       : "Three small boards in a row.";
+  const again = $<HTMLButtonElement>("ut-again");
+  const note = $("ut-note");
+  const friend = names[other(me)];
+  const flags = channel && latest ? latest.rematch : [false, false];
+  again.disabled = flags[me]!;
+  again.textContent = flags[me] ? `Waiting for ${friend}` : "Play again";
+  const asked = !flags[me] && flags[1 - me];
+  // Online the line keeps its place, so the board does not jump when the friend asks.
+  note.hidden = !channel;
+  note.style.visibility = asked ? "" : "hidden";
+  note.textContent = asked ? `${friend} wants a rematch` : "\u00a0";
   const rows: [string, string][] = [];
   if (solo && notes.length > 0) {
     rows.push(["Games played out", fmt(notes.reduce((a, x) => a + x.playouts, 0))]);
@@ -282,15 +341,26 @@ function draw(from: Board | null = null) {
 
 // ---------- playing ----------
 
-/** Plays the current player's mark on `cell`: the move counts and saves at once. */
+/**
+ * Plays the current player's mark on `cell`. Offline, the move counts and
+ * saves at once. Online, the host counts it: the mark shows here as it is
+ * sent, and stays until the host answers.
+ */
 function place(cell: number) {
   const before = board;
   const next = play(board, cell);
   if (!next) return;
+  if (channel) {
+    // Online, only once the host can hear it.
+    if (!channel.send({ t: "mark", cell, at: board.moves.length })) return;
+    pending = board.moves.length;
+  }
   board = next;
   aim = null;
-  if (board.winner !== null) wins[board.winner] += 1;
-  persist();
+  if (!channel) {
+    if (board.winner !== null) wins[board.winner] += 1;
+    persist();
+  }
   if ("vibrate" in navigator) navigator.vibrate(isOver(board) ? [20, 40, 20, 40, 60] : 12);
   takeTurn(before);
 }
@@ -300,6 +370,8 @@ function aimAt(cell: number) {
   if (locked() || !canPlay(board, cell)) return;
   if (aim === cell) return place(cell);
   aim = cell;
+  // Online, the friend sees the aim dimmed.
+  channel?.send({ t: "aim", cell });
   draw();
 }
 
@@ -388,11 +460,104 @@ $("ut-resume").addEventListener("click", () => {
   startGame(saved.board);
 });
 
+// ---------- online ----------
+
+/**
+ * Catches the board up with the host's latest match. The friend's new mark
+ * draws itself in as it would on one phone; anything else (a rematch, a
+ * reconnect, a refused mark) redraws the board at once.
+ */
+function settle() {
+  const m = latest;
+  if (!channel || !m) return;
+  const target = replay(m.first, m.moves);
+  if (!target) return;
+  wins = [...m.wins];
+  const before = board;
+  const n = board.moves.length;
+  const same = board.starter === target.starter && board.moves.every((c, i) => target.moves[i] === c);
+  if (target.moves.length !== n || !same) {
+    board = target;
+    aim = null;
+    foeAim = null;
+  }
+  if (pending !== null) {
+    // The mark this phone sent never counted (a drop in the connection, say).
+    if (target.moves.length <= pending) toast("Connection hiccup · place that one again");
+    pending = null;
+  }
+  // One more mark on the same game is the friend's move: it draws itself in.
+  const moved = same && target.moves.length === n + 1;
+  draw(moved ? before : null);
+  if (moved && "vibrate" in navigator && isOver(board)) navigator.vibrate([20, 40, 20, 40, 60]);
+  const mine = !isOver(board) && board.turn === me;
+  if (mine && !wasMine) yourTurn();
+  wasMine = mine;
+}
+
+function yourTurn() {
+  toast(board.target === null && board.moves.length > 0 ? "Your turn · any board" : "Your turn");
+  if ("vibrate" in navigator) navigator.vibrate([30, 60, 30]);
+}
+
+function toast(text: string) {
+  const el = $("ut-toast");
+  el.textContent = text;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+function setBanner(text: string | null, ok = false) {
+  const el = $("ut-banner");
+  el.hidden = !text;
+  el.textContent = text ?? "";
+  el.classList.toggle("ok", ok);
+}
+
+function onMessage(msg: UltimateServerMessage) {
+  if (msg.t === "aim") {
+    // The friend's aim: cosmetic, and only while they are on turn.
+    if (msg.seat === me || board.turn !== msg.seat || !canPlay(board, msg.cell)) return;
+    foeAim = msg.cell;
+    return draw();
+  }
+  latest = msg.match;
+  settle();
+}
+
+/** The connection or the players changed. */
+function onChange() {
+  const ch = channel;
+  if (!ch) return;
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  banner?.update();
+  draw();
+}
+
+function openOnline(ch: Channel<UltimateServerMessage, UltimateClientMessage>) {
+  channel = ch;
+  me = ch.me;
+  latest = null;
+  pending = null;
+  foeAim = null;
+  wasMine = false;
+  wins = [0, 0];
+  const [a, b] = ch.players;
+  names = [a.name, b.name];
+  banner?.stop();
+  banner = new ConnectionBanner(ch, setBanner);
+  // An empty board, waiting, until the host sends the game.
+  startGame(newBoard());
+  ch.listen({ message: onMessage, change: onChange });
+}
+
 $("ut-place").addEventListener("click", () => {
   if (aim !== null && !locked()) place(aim);
 });
-$("ut-leave").addEventListener("click", goHome);
-$("ut-again").addEventListener("click", rematch);
+$("ut-leave").addEventListener("click", () => (channel ? channel.leave() : goHome()));
+$("ut-again").addEventListener("click", () => (channel ? channel.send({ t: "rematch" }) : rematch()));
 
 // For the end-to-end test.
 (window as unknown as { __ultimate: unknown }).__ultimate = {
@@ -414,7 +579,11 @@ $("ut-again").addEventListener("click", rematch);
     wins,
     seed,
     level: solo ? level : null,
+    me: channel ? me : null,
     locked: locked(),
+    rematch: latest?.rematch ?? null,
+    foeAim,
+    pending,
     notes,
   }),
 };
@@ -422,13 +591,17 @@ $("ut-again").addEventListener("click", rematch);
 // ---------- shell hooks ----------
 
 export function open(_rest: string, session: GameSession): void {
-  // The shell opens the game only in a mode it supports.
-  if (session.mode === "online") return;
+  if (session.mode === "online") {
+    // Straight into the party's game, on this phone's seat.
+    solo = false;
+    if (!channel) openOnline(session.channel as Channel<UltimateServerMessage, UltimateClientMessage>);
+    return;
+  }
   solo = session.mode === "solo";
   if (session.mode === "solo") {
     names = [cleanName(session.names[0], DEFAULT_NAMES[0]), COMPUTER_NAME];
     level = session.difficulty;
-  } else {
+  } else if (session.mode === "pass-and-play") {
     names = [cleanName(session.names[0], DEFAULT_NAMES[0]), cleanName(session.names[1], DEFAULT_NAMES[1])];
   }
   goHome();
@@ -437,4 +610,12 @@ export function open(_rest: string, session: GameSession): void {
 export function close(): void {
   // Only the computer's wait runs in the background; the game is saved after every move.
   clearTimeout(thinkTimer);
+  // Online, the game stays on the server.
+  channel = null;
+  latest = null;
+  foeAim = null;
+  clearTimeout(toastTimer);
+  $("ut-toast").classList.remove("on");
+  banner?.stop();
+  banner = null;
 }

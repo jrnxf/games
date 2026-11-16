@@ -27,8 +27,6 @@ describe("menu modes", () => {
   it("says nothing against a mode a game supports", () => {
     expect(refusal(chess, "pass-and-play")).toBeNull();
     expect(blurb(chess, "pass-and-play")).toBe("2 players · one phone");
-    // Ultimate Tic-Tac-Toe's online host is not written yet: drop this filter when it is.
-    for (const info of GAMES.filter((g) => g.id !== "ultimate-tic-tac-toe"))
-      expect(refusal(info, "online")).toBeNull();
+    for (const info of GAMES) expect(refusal(info, "online")).toBeNull();
   });
 });

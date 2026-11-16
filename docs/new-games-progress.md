@@ -48,8 +48,9 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Computer: Monte Carlo tree search, playouts by level, capped by time + tests (`core/ai.ts`, `tests/unit/ultimate-tic-tac-toe-ai.test.ts`)
 - [x] Client: solo and pass & play, `info.ts`, added to `GAMES`, save and running score, the open boards lit
 - [x] Online host: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests (`tests/unit/ultimate-tic-tac-toe-host.test.ts`)
-- [ ] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
-- [ ] E2E: `tests/e2e/ultimate-tic-tac-toe.ts` (solo, pass & play, offline, online), called from `tests/e2e/menu.ts` and `tests/e2e/online.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [x] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
+- [x] E2E online: `ultimateOnline` in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/online.ts`
+- [ ] E2E menu: solo, pass & play and offline parts in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
 - [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 - [ ] Last: run every check in "Done means" (`test:e2e`, `test:solo` and `test:look` too), then delete this file
@@ -114,6 +115,10 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - The client was checked by hand in a browser (pass & play to a win and a draw, a rematch, solo against Hard with a reload, 360x740 and 820x1180), but it has no e2e in the repo yet.
 
-- Ultimate Tic-Tac-Toe host: `ultimateHost` in `core/host.ts`, with `startUltimate`, `mark`, `rematch`, `boardOf` and `carryUltimate`. The match is `{ first, moves, wins, rematch }`, like Reversi. A phone sends `{ t: "mark", cell, at }`, `{ t: "aim", cell }` or `{ t: "rematch" }`, and gets `{ t: "state", match }` or `{ t: "aim", seat, cell }`. The host relays an aim only on turn and on a cell the player may mark. `PROTOCOL` is 9. The host is in `worker/hosts.ts`, but `info.ts` still says `online: false`.
+- Ultimate Tic-Tac-Toe host: `ultimateHost` in `core/host.ts`, with `startUltimate`, `mark`, `rematch`, `boardOf` and `carryUltimate`. The match is `{ first, moves, wins, rematch }`, like Reversi. A phone sends `{ t: "mark", cell, at }`, `{ t: "aim", cell }` or `{ t: "rematch" }`, and gets `{ t: "state", match }` or `{ t: "aim", seat, cell }`. The host relays an aim only on turn and on a cell the player may mark. `PROTOCOL` is 9.
 
-Next: the Ultimate Tic-Tac-Toe online client. Follow Reversi's client for the channel, banner, toast, settle and rematch flags, and Connect Four's for the dimmed aim. Then set `online: true` and remove the filter in `tests/unit/games.test.ts`.
+- Ultimate Tic-Tac-Toe online client: "Place" sends the mark and shows it at once (`pending` holds its move count until the host answers). `settle` takes the host's board when it differs, and draws the friend's new mark in. A refused mark shows "Connection hiccup · place that one again". Each new aim goes to the host, and the friend's aim (`foeAim`) shows as a dimmer, still mark (`.ut-mark.ghost.theirs`) while this phone waits. No board is lit on the phone that waits. The your-turn toast adds "· any board" after a mark that sent the player to a closed board. The hook has `me`, `rematch`, `foeAim` and `pending`. Write the dimmed aim in `docs/decisions.md` at the README step.
+
+- Ultimate Tic-Tac-Toe e2e online: `ultimateOnline` plays `WIN` to a result (with the dimmed aim, a reload and a rematch), then `SENT_TO_WON` on a slow link for the free choice of board. `tap` aims and presses "Place". The menu parts (solo, pass & play, offline, the 360x740 and tablet checks) are not written yet: `DRAW` and `SENT_TO_FULL` are free for them.
+
+Next: the Ultimate Tic-Tac-Toe menu e2e (`ultimateSolo`, `ultimatePassAndPlay`, `ultimateOffline` in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts`). Then the README entry and the `docs/decisions.md` section.
