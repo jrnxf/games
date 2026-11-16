@@ -50,7 +50,7 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 - [x] Online host: `core/protocol.ts`, `core/host.ts`, `worker/hosts.ts`, `PROTOCOL` bump (9), host tests (`tests/unit/ultimate-tic-tac-toe-host.test.ts`)
 - [x] Online client: `online: true` in `info.ts`, the filter gone from `tests/unit/games.test.ts`, the friend's aim dimmed, "your turn" alert, `ConnectionBanner`, rematch that waits for both
 - [x] E2E online: `ultimateOnline` in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/online.ts`
-- [ ] E2E menu: solo, pass & play and offline parts in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
+- [x] E2E menu: solo, pass & play and offline parts in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts`, screenshots checked at 390x844, 360x740 and tablet
 - [ ] README entry (and its Test section) and `docs/decisions.md` section
 
 - [ ] Last: run every check in "Done means" (`test:e2e`, `test:solo` and `test:look` too), then delete this file
@@ -121,4 +121,6 @@ Steps per game: core rules + unit tests, computer + tests, client (solo and pass
 
 - Ultimate Tic-Tac-Toe e2e online: `ultimateOnline` plays `WIN` to a result (with the dimmed aim, a reload and a rematch), then `SENT_TO_WON` on a slow link for the free choice of board. `tap` aims and presses "Place". The menu parts (solo, pass & play, offline, the 360x740 and tablet checks) are not written yet: `DRAW` and `SENT_TO_FULL` are free for them.
 
-Next: the Ultimate Tic-Tac-Toe menu e2e (`ultimateSolo`, `ultimatePassAndPlay`, `ultimateOffline` in `tests/e2e/ultimate-tic-tac-toe.ts`, called from `tests/e2e/menu.ts`). Then the README entry and the `docs/decisions.md` section.
+- Ultimate Tic-Tac-Toe e2e menu: `ultimateSolo`, `ultimatePassAndPlay` and `ultimateOffline`. In solo Zoe marks the first spot she may until Hard wins (`rush` plays her marks inside the page). Pass & play plays `WIN`, then `DRAW` with the other starter (3 boards to 5), then `SENT_TO_FULL` and a reload. `tapAll` taps each spot twice inside the page: the first tap aims and the second makes the mark. `fits` checks the board at 360x740 and 820x1180. The open boards lost their tint: the yellow mixed into the purple showed as brown lines between the spots, so the ring and the brighter spots now mark an open board.
+
+Next: the Ultimate Tic-Tac-Toe README entry (and the Test section lines) and the `docs/decisions.md` section. Then run every check in "Done means" and delete this file.

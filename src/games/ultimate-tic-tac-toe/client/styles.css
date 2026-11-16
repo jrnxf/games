@@ -220,7 +220,6 @@ body[data-game="ultimate-tic-tac-toe"] {
 
 /* A board the player on turn may play in: a ring in their colour, and brighter spots. */
 .ut-small.open {
-  background: color-mix(in srgb, var(--turn) 30%, var(--ut-small));
   box-shadow: inset 0 0 0 2px var(--turn);
 }
 
