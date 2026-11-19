@@ -506,21 +506,34 @@ body[data-game="sea-battle"] {
     grid-area: bar;
   }
 
-  /* One card above the other: side by side, the column is too narrow for a name. */
+  /*
+   * One card above the other: side by side, the column is too narrow for a
+   * name. The cards are low, so the result has room under them.
+   */
   #sb-game .sb-players {
     grid-area: players;
     flex-direction: column;
+    gap: 6px;
+    margin: 0 0 8px;
+  }
+
+  #sb-game .sb-pl {
+    min-height: 46px;
+    padding: 4px 8px;
   }
 
   #sb-game .sb-play {
     grid-area: play;
     margin: 0 0 0 -12px;
-    padding-bottom: 12px;
   }
 
   #sb-game .sb-dock {
     grid-area: dock;
     align-self: end;
+  }
+
+  #sb-game .sb-result {
+    padding: 8px 0 12px;
   }
 }
 

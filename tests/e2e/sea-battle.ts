@@ -127,8 +127,9 @@ function lift(p: Browser) {
 
 /**
  * The screen `screen` fits a phone of `size`: no sideways scroll, buttons a
- * thumb can hit, the dock in view, and cells of at least `min` px. A phone on
- * its side fits two grids in 390 px of height, so it passes a lower `min`.
+ * thumb can hit, the dock in view and clear of the player cards, and cells of
+ * at least `min` px. A phone on its side fits two grids in 390 px of height,
+ * so it passes a lower `min`.
  */
 function fits(p: Browser, size: string, screen: string, name: string, min = 30) {
   p.viewport(size);
@@ -139,23 +140,28 @@ function fits(p: Browser, size: string, screen: string, name: string, min = 30) 
     width: number;
     bottom: number;
     height: number;
+    top: number;
+    cards: number;
   }>(
     `() => {
     const on = document.getElementById(${JSON.stringify(screen)});
     const buttons = [...on.querySelectorAll(".sb-dock .btn")].filter((el) => el.getClientRects().length > 0);
+    const dock = on.querySelector(".sb-dock").getBoundingClientRect();
     return {
       cell: on.querySelector(".sb-play .sb-cell").getBoundingClientRect().width,
       button: Math.min(...buttons.map((el) => el.getBoundingClientRect().height)),
       scroll: document.documentElement.scrollWidth,
       width: innerWidth,
-      bottom: on.querySelector(".sb-dock").getBoundingClientRect().bottom,
+      bottom: dock.bottom,
       height: innerHeight,
+      top: dock.top,
+      cards: on.querySelector(".sb-players")?.getBoundingClientRect().bottom ?? 0,
     };
   }`,
   );
   check(
-    m.cell >= min && m.button >= 44 && m.scroll <= m.width && m.bottom <= m.height + 1,
-    `at ${size.split("x", 2).join("x")} ${name} fits: ${m.cell.toFixed(1)} px cells, ${m.button.toFixed(0)} px buttons, no sideways scroll`,
+    m.cell >= min && m.button >= 44 && m.scroll <= m.width && m.bottom <= m.height + 1 && m.top >= m.cards,
+    `at ${size.split("x", 2).join("x")} ${name} fits: ${m.cell.toFixed(1)} px cells, ${m.button.toFixed(0)} px buttons, no sideways scroll, the dock ${(m.top - m.cards).toFixed(0)} px under the cards`,
   );
   p.screenshot(name);
 }
@@ -478,6 +484,8 @@ export async function seaSolo(phone: Browser) {
   );
   phone.screenshot("sb-solo-lost");
   fits(phone, "360x740x2,mobile,touch", "sb-game", "sb-solo-lost-360");
+  fits(phone, "844x390x2,mobile,touch", "sb-game", "sb-solo-lost-landscape", 24);
+  fits(phone, "667x375x2,mobile,touch", "sb-game", "sb-solo-lost-landscape-small", 14);
   phone.viewport(VIEWPORT);
 
   // The rematch: a new fleet, then the computer fires first on its own.
