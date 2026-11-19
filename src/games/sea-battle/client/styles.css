@@ -184,7 +184,7 @@ body[data-game="sea-battle"] {
 /*
  * Ten cells across the width, capped so the grid fits the height. On a phone
  * it runs edge to edge. A cell is under a thumb wide (36 px at 360), so a tap
- * only aims, and the "Fire" button shoots.
+ * only aims, and the "Fire" button or a second tap on that cell shoots.
  */
 .sb-sea {
   --cell: min(calc(100cqw / 10), calc((100cqh - 8px) / 10), 56px);
