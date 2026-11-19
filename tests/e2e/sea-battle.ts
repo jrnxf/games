@@ -74,8 +74,11 @@ async function fire(p: Browser, cell: number, phones: Browser[] = [p]) {
     return now.canAim ? now : null;
   });
   const n = s.shots.length;
-  p.click(cellOf(cell));
-  await waitFor("the aim", () => sea(p).aim === cell);
+  // A tap on the aimed cell would fire: tap only to move the aim, then fire with the button.
+  if (s.aim !== cell) {
+    p.click(cellOf(cell));
+    await waitFor("the aim", () => sea(p).aim === cell);
+  }
   p.click("#sb-fire");
   await waitFor("the shot on every phone", () => phones.every((q) => sea(q).shots.length === n + 1));
 }
@@ -122,8 +125,13 @@ function lift(p: Browser) {
   });`);
 }
 
-/** The screen `screen` fits a phone of `size`: no sideways scroll, buttons a thumb can hit, the dock in view. */
-function fits(p: Browser, size: string, screen: string, name: string) {
+/**
+ * The screen `screen` fits a phone of `size`: no sideways scroll, buttons a
+ * thumb can hit, the dock in view and clear of the player cards, and cells of
+ * at least `min` px. A phone on its side fits two grids in 390 px of height,
+ * so it passes a lower `min`.
+ */
+function fits(p: Browser, size: string, screen: string, name: string, min = 30) {
   p.viewport(size);
   const m = p.eval<{
     cell: number;
@@ -132,25 +140,44 @@ function fits(p: Browser, size: string, screen: string, name: string) {
     width: number;
     bottom: number;
     height: number;
+    top: number;
+    cards: number;
   }>(
     `() => {
     const on = document.getElementById(${JSON.stringify(screen)});
     const buttons = [...on.querySelectorAll(".sb-dock .btn")].filter((el) => el.getClientRects().length > 0);
+    const dock = on.querySelector(".sb-dock").getBoundingClientRect();
     return {
       cell: on.querySelector(".sb-play .sb-cell").getBoundingClientRect().width,
       button: Math.min(...buttons.map((el) => el.getBoundingClientRect().height)),
       scroll: document.documentElement.scrollWidth,
       width: innerWidth,
-      bottom: on.querySelector(".sb-dock").getBoundingClientRect().bottom,
+      bottom: dock.bottom,
       height: innerHeight,
+      top: dock.top,
+      cards: on.querySelector(".sb-players")?.getBoundingClientRect().bottom ?? 0,
     };
   }`,
   );
   check(
-    m.cell >= 30 && m.button >= 44 && m.scroll <= m.width && m.bottom <= m.height + 1,
-    `at ${size.split("x", 2).join("x")} ${name} fits: ${m.cell.toFixed(1)} px cells, ${m.button.toFixed(0)} px buttons, no sideways scroll`,
+    m.cell >= min && m.button >= 44 && m.scroll <= m.width && m.bottom <= m.height + 1 && m.top >= m.cards,
+    `at ${size.split("x", 2).join("x")} ${name} fits: ${m.cell.toFixed(1)} px cells, ${m.button.toFixed(0)} px buttons, no sideways scroll, the dock ${(m.top - m.cards).toFixed(0)} px under the cards`,
   );
   p.screenshot(name);
+}
+
+/**
+ * Whether the viewer's fleet sits level with the other's water, to its right
+ * and the same size (true), or under it and smaller (false).
+ */
+function fleetBeside(p: Browser): boolean | null {
+  return p.eval<boolean | null>(`() => {
+    const sea = document.getElementById("sb-sea").getBoundingClientRect();
+    const own = document.getElementById("sb-own").getBoundingClientRect();
+    if (Math.abs(own.top - sea.top) < 2 && own.left > sea.right && Math.abs(own.width - sea.width) < 6) return true;
+    if (own.top > sea.bottom && own.width < sea.width) return false;
+    return null;
+  }`);
 }
 
 /** Takes the phone from the "Pass to" card: taps "I'm ready" and waits for the screen behind it. */
@@ -351,13 +378,17 @@ export async function seaSolo(phone: Browser) {
     "the small grid shows where the computer's shot fell",
   );
 
-  // The Skiff's second cell sinks it.
+  // The Skiff's second cell sinks it: a second tap on the aimed cell fires, with no "Fire".
   phone.click(cellOf(target[1]!));
+  check(sea(phone).aim === target[1] && sea(phone).shots.length === 2, "the first tap only aims");
   const sank = phone.eval<string>(`() => {
-    document.getElementById("sb-fire").click();
+    document.querySelectorAll("#sb-sea .sb-cell")[${target[1]}].click();
     return document.getElementById("sb-status-text").textContent;
   }`);
-  check(sank === "You sank a Skiff!", "the last hit on a ship sinks it");
+  check(
+    sank === "You sank a Skiff!",
+    "a second tap on the aimed cell fires, and the last hit on a ship sinks it",
+  );
   await waitFor("the computer's second shot", () => sea(phone).shots.length === 4 && sea(phone).canAim);
   check(
     sea(phone).seen[0].sunk.length === 1 && count(phone, "sb-sea", "sunk") === 2 && lost(phone, 1) === 1,
@@ -365,8 +396,13 @@ export async function seaSolo(phone: Browser) {
   );
   phone.screenshot("sb-solo-sunk");
   fits(phone, "360x740x2,mobile,touch", "sb-game", "sb-solo-360");
+  check(fleetBeside(phone) === false, "on an upright phone the fleet sits under the other's water");
   fits(phone, "820x1180x2,mobile,touch", "sb-game", "sb-solo-tablet");
+  check(fleetBeside(phone) === true, "on a wide screen the fleet sits beside the other's water, as big");
+  fits(phone, "844x390x2,mobile,touch", "sb-game", "sb-solo-landscape", 24);
+  check(fleetBeside(phone) === true, "on a phone on its side the fleet sits beside the other's water");
   phone.viewport(VIEWPORT);
+  check(fleetBeside(phone) === false, "back upright, the fleet goes back under the other's water");
 
   // Zoe misses, then the page reloads while the computer is still thinking.
   phone.click(cellOf(open[0]!));
@@ -448,6 +484,8 @@ export async function seaSolo(phone: Browser) {
   );
   phone.screenshot("sb-solo-lost");
   fits(phone, "360x740x2,mobile,touch", "sb-game", "sb-solo-lost-360");
+  fits(phone, "844x390x2,mobile,touch", "sb-game", "sb-solo-lost-landscape", 24);
+  fits(phone, "667x375x2,mobile,touch", "sb-game", "sb-solo-lost-landscape-small", 14);
   phone.viewport(VIEWPORT);
 
   // The rematch: a new fleet, then the computer fires first on its own.

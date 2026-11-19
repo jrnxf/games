@@ -1,14 +1,16 @@
 // Sea Battle's entry: solo against the computer, pass-and-play on one phone,
 // or online with a friend in a party. Each player first lays out a fleet (drag
 // a ship, tap it to turn it, or take a random layout). Then a tap aims at a
-// cell of the other's water and "Fire" shoots. The big grid is the other
-// player's water as the viewer knows it, and the small one is the viewer's own
-// fleet with the shots that fell there. On one phone a "Pass to" card covers
-// the screen between turns, so nobody sees the other fleet. Offline, the game
-// saves after every shot: a reload or a trip to the menu picks up where it
-// left off, the computer's pending shot included. Online, the host on the
-// server holds both fleets (core/host.ts). This phone has its own fleet and
-// the marks of both players, and it draws what the host says.
+// cell of the other's water, and "Fire" or a second tap on that cell shoots.
+// The big grid is the other player's water as the viewer knows it, and the
+// other grid is the viewer's own fleet with the shots that fell there: beside
+// the big one on a wide screen, and under it on an upright phone. On one phone
+// a "Pass to" card covers the screen between turns, so nobody sees the other
+// fleet. Offline, the game saves after every shot: a reload or a trip to the
+// menu picks up where it left off, the computer's pending shot included.
+// Online, the host on the server holds both fleets (core/host.ts). This phone
+// has its own fleet and the marks of both players, and it draws what the host
+// says.
 
 import "./styles.css";
 import screens from "./screens.html?raw";
@@ -208,6 +210,22 @@ const yardEl = $("sb-yard");
 const seaCells = makeSea("sb-sea", "button", takeAim);
 const ownCells = makeSea("sb-own", "div");
 const yardCells = makeSea("sb-yard", "div");
+
+/**
+ * Where the viewer's own fleet sits. On a wide screen, or a phone on its side,
+ * it goes beside the other's water at the same size, where the eye already is.
+ * On an upright phone two grids side by side would halve the cells, so the
+ * fleet stays under the other's water, beside the status line.
+ */
+const wide = matchMedia("(min-width: 700px), (orientation: landscape)");
+function placeOwn() {
+  const own = ownEl.parentElement!;
+  $("sb-game").classList.toggle("wide", wide.matches);
+  if (wide.matches) seaEl.after(own);
+  else $("sb-deck").prepend(own);
+}
+placeOwn();
+wide.addEventListener("change", placeOwn);
 
 /** Each player card shows its fleet as five small bars. */
 for (const seat of [0, 1] as const) {
@@ -445,9 +463,10 @@ function draw() {
 
 // ---------- playing ----------
 
-/** The viewer taps a cell of the other's water: the aim moves there. */
+/** The viewer taps a cell of the other's water: the first tap aims there, and a second tap on it fires. */
 function takeAim(cell: number) {
   if (!canAim() || !canFireAt(board.seen[view], cell)) return;
+  if (aim === cell) return fireAim();
   aim = cell;
   draw();
   // Online, the friend sees the aim. It is for show: a lost one does no harm.
@@ -725,7 +744,7 @@ function goHome() {
   $("sb-resume").hidden = !saved || !saved.board || saved.board.over;
   $("sb-lead").textContent =
     (solo ? "You against the computer. " : "One phone, two players. ") +
-    "Hide your five ships on your water. Then take turns: tap a cell of the other water to aim, and fire. " +
+    "Hide your five ships on your water. Then take turns: tap a cell of the other water to aim, and tap it again or press Fire. " +
     "Hit every cell of a ship to sink it. Sink all five to win.";
   const colours = [COLOURS[0], solo ? `${COLOURS[1]} · ${LEVEL_LABELS[level]}` : COLOURS[1]];
   for (const seat of [0, 1] as const) {

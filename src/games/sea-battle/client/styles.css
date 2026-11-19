@@ -184,7 +184,7 @@ body[data-game="sea-battle"] {
 /*
  * Ten cells across the width, capped so the grid fits the height. On a phone
  * it runs edge to edge. A cell is under a thumb wide (36 px at 360), so a tap
- * only aims, and the "Fire" button shoots.
+ * only aims, and the "Fire" button or a second tap on that cell shoots.
  */
 .sb-sea {
   --cell: min(calc(100cqw / 10), calc((100cqh - 8px) / 10), 56px);
@@ -380,7 +380,7 @@ body[data-game="sea-battle"] {
   animation: none;
 }
 
-/* The viewer's own water, small, beside the status line. */
+/* The viewer's own water: small beside the status line, or beside the other's water on a wide screen. */
 .sb-sea.small {
   --cell: 13px;
   margin: 0;
@@ -428,9 +428,112 @@ body[data-game="sea-battle"] {
   }
 }
 
-@media (min-width: 700px) {
-  .sb-sea.small {
-    --cell: 16px;
+/*
+ * Upright phone: the fleet sits right under the other's water, as big as the
+ * height allows. A short phone keeps 13 px cells, so the big grid keeps its
+ * size. The other's water sinks to the bottom of its room, next to the fleet.
+ */
+#sb-game:not(.wide) .sb-sea.small {
+  --cell: max(13px, min(calc((100vw - 200px) / 10), calc((100dvh - 560px) / 10), 20px));
+}
+
+#sb-game:not(.wide) .sb-play {
+  justify-content: flex-end;
+}
+
+#sb-game:not(.wide) .sb-deck {
+  padding-top: 14px;
+}
+
+/*
+ * Wide screen (main.ts sets .wide): the fleet sits beside the other's water,
+ * the same size, so a shot on it is seen without a look away. Both grids
+ * share the room the play area has, and the fleet's title sits above it, out
+ * of the line, so the two grids stay level.
+ */
+#sb-game.wide .sb-play {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 12px 0;
+}
+
+#sb-game.wide .sb-sea {
+  --cell: min(calc((100cqw - 40px) / 20), calc((100cqh - 30px) / 10), 56px);
+  margin: 0;
+}
+
+#sb-game.wide .sb-own {
+  position: relative;
+  padding: 0;
+}
+
+#sb-game.wide .sb-own small {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  max-width: 100%;
+}
+
+#sb-game.wide .sb-sea.small .sb-cell.miss::after {
+  inset: 30%;
+  border-width: 2px;
+}
+
+#sb-game.wide .sb-deck {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/*
+ * A phone on its side: the height is too short for the cards and the dock
+ * under the grids, so they go in a column on the right.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  #sb-game.on {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 32%);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "bar bar"
+      "play players"
+      "play dock";
+    column-gap: 12px;
+  }
+
+  #sb-game .bar {
+    grid-area: bar;
+  }
+
+  /*
+   * One card above the other: side by side, the column is too narrow for a
+   * name. The cards are low, so the result has room under them.
+   */
+  #sb-game .sb-players {
+    grid-area: players;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 8px;
+  }
+
+  #sb-game .sb-pl {
+    min-height: 46px;
+    padding: 4px 8px;
+  }
+
+  #sb-game .sb-play {
+    grid-area: play;
+    margin: 0 0 0 -12px;
+  }
+
+  #sb-game .sb-dock {
+    grid-area: dock;
+    align-self: end;
+  }
+
+  #sb-game .sb-result {
+    padding: 8px 0 12px;
   }
 }
 
