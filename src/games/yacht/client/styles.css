@@ -86,13 +86,14 @@ body[data-game="yacht"] {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
 /* ---------- scorecard ---------- */
 
 .yt-play {
   position: relative;
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -100,9 +101,8 @@ body[data-game="yacht"] {
 }
 
 .yt-card {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
-  max-height: 720px;
   display: flex;
   flex-direction: column;
   padding: 2px 0;
@@ -114,9 +114,8 @@ body[data-game="yacht"] {
 
 .yt-row {
   --cols: 1fr 76px 76px;
-  flex: 1 1 0;
+  flex: 0 1 44px;
   min-height: 0;
-  max-height: 44px;
   display: grid;
   grid-template-columns: var(--cols);
   align-items: stretch;
@@ -164,11 +163,24 @@ body[data-game="yacht"] {
   background: color-mix(in srgb, var(--c) 9%, transparent);
 }
 
+/* A column's head: the name, with the player's colour as a small bar under it. */
 .yt-head .yt-cell {
-  gap: 6px;
-  padding: 0 4px;
-  font-size: 14px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px;
+  font-size: 13px;
   color: var(--muted);
+}
+
+.yt-head .yt-cell b {
+  max-width: 100%;
+}
+
+.yt-head .yt-mini {
+  width: 22px;
+  height: 5px;
+  border-radius: 3px;
+  box-shadow: none;
 }
 
 .yt-head .yt-cell b {
@@ -632,7 +644,7 @@ body[data-game="yacht"] {
 
 @media (max-width: 370px) {
   .yt-row {
-    --cols: 1fr 68px 68px;
+    --cols: 1fr 74px 74px;
     padding-left: 12px;
   }
 
@@ -679,6 +691,26 @@ body[data-game="yacht"] {
 
   .yt-total .yt-cell {
     font-size: 15px;
+  }
+
+  .yt-row {
+    --cols: 1fr 88px 88px;
+  }
+
+  /* Too short for the bar under the name: a small square beside it. */
+  .yt-head {
+    flex: 0 0 26px;
+  }
+
+  .yt-head .yt-cell {
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .yt-head .yt-mini {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
   }
 }
 
