@@ -1,0 +1,73 @@
+<!-- Yacht screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="yt-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Yacht</span>
+  </div>
+  <form class="pad stack" id="yt-form">
+    <p class="lead" id="yt-lead"></p>
+    <div class="yt-pl s0">
+      <i class="yt-mini s0"></i>
+      <div><b class="yt-name" id="yt-name-0"></b><small class="yt-sub" id="yt-sub-0"></small></div>
+    </div>
+    <div class="yt-pl s1">
+      <i class="yt-mini s1"></i>
+      <div><b class="yt-name" id="yt-name-1"></b><small class="yt-sub" id="yt-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="yt-start">Start</button>
+    <button class="btn outline" type="button" id="yt-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Scorecard and dice -->
+<section class="screen" id="yt-game" data-screen>
+  <div class="bar">
+    <button class="back" id="yt-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Yacht</span>
+    <!-- Games won, once there is one. -->
+    <span class="yt-tally" id="yt-tally" aria-label="Games won"></span>
+  </div>
+  <div class="yt-main">
+    <div class="yt-play">
+      <div class="yt-banner" id="yt-banner" role="status" hidden></div>
+      <div class="yt-toast" id="yt-toast" role="status"></div>
+      <div class="yt-card" id="yt-card" role="group" aria-label="Scorecard"></div>
+    </div>
+    <div class="yt-dock">
+      <div class="yt-turn" id="yt-turn">
+        <div class="yt-tray" id="yt-tray">
+          <div class="yt-caption">
+            <p role="status">
+              <span id="yt-status"></span
+              ><span class="yt-dots" id="yt-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            </p>
+            <span class="yt-left" id="yt-left"
+              ><span class="yt-pips" id="yt-pips"></span><span id="yt-left-text"></span
+            ></span>
+          </div>
+          <div class="yt-dice" id="yt-dice" role="group" aria-label="Dice"></div>
+        </div>
+        <div class="yt-actions">
+          <button class="btn outline" type="button" id="yt-score" disabled>Score</button>
+          <button class="btn primary" type="button" id="yt-roll">Roll</button>
+        </div>
+      </div>
+      <div class="yt-result" id="yt-result" hidden>
+        <h2 id="yt-result-title" role="status"></h2>
+        <p class="yt-why" id="yt-why"></p>
+        <p class="yt-note" id="yt-note" hidden></p>
+        <div class="yt-result-row">
+          <button class="btn outline" data-menu>All games</button>
+          <button class="btn primary" id="yt-again">Play again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

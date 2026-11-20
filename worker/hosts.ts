@@ -8,6 +8,7 @@ import { golfHost } from "../src/games/mini-golf/core/host.ts";
 import { reversiHost } from "../src/games/reversi/core/host.ts";
 import { seaHost } from "../src/games/sea-battle/core/host.ts";
 import { ultimateHost } from "../src/games/ultimate-tic-tac-toe/core/host.ts";
+import { yachtHost } from "../src/games/yacht/core/host.ts";
 import type { Hosts } from "../src/party/host.ts";
 
 export const HOSTS: Hosts = {
@@ -18,4 +19,5 @@ export const HOSTS: Hosts = {
   mancala: mancalaHost,
   "sea-battle": seaHost,
   "ultimate-tic-tac-toe": ultimateHost,
+  yacht: yachtHost,
 };
