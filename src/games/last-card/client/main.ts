@@ -69,6 +69,8 @@ const ROOMY = 12;
 const MIN_STRIP = 22;
 /** How far a lifted card rises. */
 const LIFT = 18;
+/** Room at each side of the hand for the corners of the tilted end cards. */
+const TILT_ROOM = 8;
 const LEVEL_LABELS: Record<Level, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 const stillMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -255,7 +257,8 @@ function join(events: Event[], to: Seat): string {
     }
     parts.push(sayEvent(e, to));
   }
-  return parts.length ? parts.join(". ") + "." : "";
+  // A move that ends on a call ends on its "!" and takes no full stop.
+  return parts.map((p) => (/[!"]$/.test(p) ? p : `${p}.`)).join(" ");
 }
 
 /** How the game began: the first card, and what it did. */
@@ -307,7 +310,8 @@ function handCard(id: number): HTMLButtonElement {
  */
 function fan(ids: number[]) {
   const n = ids.length;
-  const W = handEl.clientWidth;
+  // The end cards tilt, so their corners need room inside the edge.
+  const W = handEl.clientWidth - 2 * TILT_ROOM;
   const w = Math.round(Math.min(n <= ROOMY ? 72 : 60, W / 4.4));
   const h = w * 1.45;
   const perRow = Math.max(1, Math.floor((W - w) / MIN_STRIP) + 1);
@@ -322,7 +326,7 @@ function fan(ids: number[]) {
     const j = i - r * per;
     const inRow = Math.min(per, n - r * per);
     const step = inRow > 1 ? Math.min(w * 0.66, (W - w) / (inRow - 1)) : 0;
-    const x = (W - (w + step * (inRow - 1))) / 2 + j * step;
+    const x = TILT_ROOM + (W - (w + step * (inRow - 1))) / 2 + j * step;
     const mid = (inRow - 1) / 2;
     const off = mid > 0 ? (j - mid) / mid : 0;
     const spread = Math.min(8, inRow * 1.2);
@@ -477,7 +481,8 @@ function drawLine(v: View | null) {
   } else {
     text.textContent = `${names[v.turn]}'s turn`;
   }
-  $("lc-told").textContent = v ? recent(v, v.seat) : "";
+  // Once the game is over the result says how it ended.
+  $("lc-told").textContent = v && !v.over ? recent(v, v.seat) : "";
 }
 
 function drawDock(v: View | null) {

@@ -480,15 +480,20 @@ body[data-game="last-card"] {
 /* What the other player just did, in words. */
 .lc-told {
   flex: none;
-  min-height: 20px;
+  /* Two lines, held open so the table does not jump. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  min-height: 2.6em;
   max-width: 100%;
   color: var(--muted);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.3;
   text-align: center;
+  text-wrap: balance;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* What to do now: the colour or the card to match, or who the game waits for. */
@@ -595,6 +600,8 @@ body[data-game="last-card"] {
 .lc-hand {
   --w: 70px;
   position: relative;
+  /* The cards stack inside the hand, under the colour sheet. */
+  isolation: isolate;
   flex: none;
   height: 132px;
   margin-top: 8px;
