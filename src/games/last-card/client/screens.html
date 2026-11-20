@@ -1,0 +1,110 @@
+<!-- Last Card screens, added to the page the first time the game opens. -->
+
+<!-- Names -->
+<section class="screen" id="lc-home" data-screen>
+  <div class="bar">
+    <button class="back" data-menu aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Last Card</span>
+  </div>
+  <form class="pad stack" id="lc-form">
+    <p class="lead" id="lc-lead"></p>
+    <div class="lc-pl s0 on">
+      <i class="lc-mini s0"></i>
+      <div><b class="lc-name" id="lc-name-0"></b><small class="lc-sub" id="lc-sub-0"></small></div>
+    </div>
+    <div class="lc-pl s1 on">
+      <i class="lc-mini s1"></i>
+      <div><b class="lc-name" id="lc-name-1"></b><small class="lc-sub" id="lc-sub-1"></small></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" type="submit" id="lc-start">Start</button>
+    <button class="btn outline" type="button" id="lc-resume" hidden>Resume your game</button>
+  </form>
+</section>
+
+<!-- Between players on one phone: nobody sees the other hand. -->
+<section class="screen" id="lc-pass" data-screen>
+  <div class="lc-cover">
+    <i class="lc-mini" id="lc-pass-flag"></i>
+    <h2 id="lc-pass-title"></h2>
+    <p id="lc-pass-sub"></p>
+    <button class="btn primary" type="button" id="lc-ready">I'm ready</button>
+  </div>
+</section>
+
+<!-- Table -->
+<section class="screen" id="lc-game" data-screen>
+  <div class="bar">
+    <button class="back" id="lc-leave" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <span class="bar-title">Last Card</span>
+    <!-- Games won, once there is one. -->
+    <span class="lc-tally" id="lc-tally" aria-label="Games won"></span>
+  </div>
+  <div class="lc-main" id="lc-main">
+    <div class="lc-top">
+      <div class="lc-players">
+        <div class="lc-pl s0" id="lc-pl-0">
+          <i class="lc-mini s0"></i>
+          <div><b class="lc-name"></b><small class="lc-sub"></small></div>
+          <span class="lc-count"></span>
+        </div>
+        <div class="lc-pl s1 right" id="lc-pl-1">
+          <i class="lc-mini s1"></i>
+          <div><b class="lc-name"></b><small class="lc-sub"></small></div>
+          <span class="lc-count"></span>
+        </div>
+      </div>
+      <div class="lc-play">
+        <div class="lc-banner" id="lc-banner" role="status" hidden></div>
+        <div class="lc-toast" id="lc-toast" role="status"></div>
+        <!-- The other hand, face down. -->
+        <div class="lc-foe" id="lc-foe" role="img"></div>
+        <button class="lc-catch" type="button" id="lc-catch" hidden>Catch!</button>
+        <div class="lc-table">
+          <button class="lc-pile" type="button" id="lc-pile">
+            <span class="lc-stack" aria-hidden="true"
+              ><i class="lc-card back"></i><i class="lc-card back"></i
+            ></span>
+            <small id="lc-pile-n"></small>
+          </button>
+          <div class="lc-discard" id="lc-discard" role="img"></div>
+        </div>
+        <p class="lc-told" id="lc-told"></p>
+        <p class="lc-line" id="lc-line" role="status">
+          <span id="lc-line-text"></span
+          ><span class="lc-dots" id="lc-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </p>
+      </div>
+    </div>
+    <div class="lc-bottom">
+      <div class="lc-hand" id="lc-hand" role="group" aria-label="Your hand"></div>
+      <div class="lc-dock" id="lc-dock">
+        <button class="btn outline lc-call" type="button" id="lc-call" aria-pressed="false">
+          Last card!
+        </button>
+        <button class="btn outline" type="button" id="lc-draw">Draw</button>
+        <button class="btn primary" type="button" id="lc-play">Play</button>
+      </div>
+      <div class="lc-result" id="lc-result" hidden>
+        <h2 id="lc-result-title" role="status"></h2>
+        <p class="lc-why" id="lc-why"></p>
+        <p class="lc-note" id="lc-note" hidden></p>
+        <dl class="lc-stats" id="lc-stats"></dl>
+        <div class="lc-result-row">
+          <button class="btn outline" data-menu>All games</button>
+          <button class="btn primary" id="lc-again">Play again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- After a Wild: the colour the next card must match. -->
+  <div class="lc-shade" id="lc-shade" hidden></div>
+  <div class="lc-sheet" id="lc-sheet" role="dialog" aria-labelledby="lc-sheet-title" hidden>
+    <h3 id="lc-sheet-title">Pick the next colour</h3>
+    <div class="lc-swatches" id="lc-swatches"></div>
+  </div>
+</section>

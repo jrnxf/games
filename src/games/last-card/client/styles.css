@@ -1,0 +1,999 @@
+/* Last Card screens. Its deep violet card-table palette applies only while it is open. */
+
+body[data-game="last-card"] {
+  --bg: #1a1430;
+  --bg-2: #2f2456;
+  --panel: #241c42;
+  --ink: #f6f2ff;
+  --muted: #b4abd2;
+  --line: rgba(246, 242, 255, 0.16);
+  --p1: #ff7a59;
+  --p1-dark: #c9502f;
+  --p2: #5fd6c4;
+  --p2-dark: #2a9a8a;
+  --accent: #ffd23f;
+  --on-accent: #1d1a10;
+  --lc-sun: #ffc23a;
+  --lc-leaf: #3fbf6a;
+  --lc-wave: #3b8cff;
+  --lc-flame: #ff5a4d;
+  --lc-back: #3d2f74;
+  --lc-back-2: #34286a;
+}
+
+#lc-game {
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+#lc-game .bar {
+  padding: 0 4px 0 0;
+  margin-left: -4px;
+}
+
+/* The running score, in the bar: a swatch and a number for each player. */
+.lc-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lc-tally b {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.lc-tally:empty {
+  display: none;
+}
+
+/* Everything under the bar. A wide screen keeps it phone-wide, in the middle. */
+.lc-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-top {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-bottom {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- players ---------- */
+
+.lc-players {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.lc-pl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: rgba(246, 242, 255, 0.05);
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.lc-pl.on {
+  opacity: 1;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.lc-pl.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.lc-pl.s0,
+.lc-mini.s0 {
+  --c: var(--p1);
+  --cd: var(--p1-dark);
+}
+
+.lc-pl.s1,
+.lc-mini.s1 {
+  --c: var(--p2);
+  --cd: var(--p2-dark);
+}
+
+/* A player's colour: a small upright card. */
+.lc-mini {
+  flex: none;
+  width: 16px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--c);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.7),
+    0 2px 0 var(--cd);
+}
+
+.lc-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-sub.called {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.lc-sub:empty {
+  display: none;
+}
+
+/* How many cards a player holds. */
+.lc-count {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- cards ---------- */
+
+/*
+ * One card: a solid colour with a big numeral and the colour's mark in two
+ * corners, so a colour-blind player can still tell the colours apart. --w
+ * sets its size, and the height follows.
+ */
+.lc-card {
+  --w: 58px;
+  --k: var(--lc-back);
+  position: relative;
+  flex: none;
+  display: block;
+  width: var(--w);
+  height: calc(var(--w) * 1.45);
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--w) * 0.17);
+  background: var(--k);
+  color: #fff;
+  font-family: var(--display);
+  font-weight: 900;
+  line-height: 1;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lc-card.sun {
+  --k: var(--lc-sun);
+}
+
+.lc-card.leaf {
+  --k: var(--lc-leaf);
+}
+
+.lc-card.wave {
+  --k: var(--lc-wave);
+}
+
+.lc-card.flame {
+  --k: var(--lc-flame);
+}
+
+/* A Wild has every colour, and no mark. */
+.lc-card.wild {
+  background: conic-gradient(
+    var(--lc-flame) 0 25%,
+    var(--lc-sun) 0 50%,
+    var(--lc-leaf) 0 75%,
+    var(--lc-wave) 0
+  );
+}
+
+.lc-card.back {
+  background: repeating-linear-gradient(45deg, var(--lc-back) 0 6px, var(--lc-back-2) 6px 12px);
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.lc-card.back::after {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 210, 63, 0.6);
+}
+
+.lc-card .big {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--w) * 0.52);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.lc-card .cn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  height: calc(var(--w) * 0.2);
+  font-size: calc(var(--w) * 0.2);
+}
+
+.lc-card .tl {
+  top: calc(var(--w) * 0.09);
+  left: calc(var(--w) * 0.1);
+}
+
+.lc-card .br {
+  bottom: calc(var(--w) * 0.09);
+  right: calc(var(--w) * 0.1);
+  transform: rotate(180deg);
+}
+
+.lc-card svg {
+  display: block;
+  fill: currentColor;
+}
+
+.lc-card .big svg {
+  width: calc(var(--w) * 0.5);
+  height: calc(var(--w) * 0.5);
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25));
+}
+
+.lc-card .cn svg {
+  width: calc(var(--w) * 0.2);
+  height: calc(var(--w) * 0.2);
+}
+
+.lc-card .mk {
+  position: absolute;
+  width: calc(var(--w) * 0.2);
+  height: calc(var(--w) * 0.2);
+}
+
+.lc-card .mk.tr {
+  top: calc(var(--w) * 0.09);
+  right: calc(var(--w) * 0.09);
+}
+
+.lc-card .mk.bl {
+  bottom: calc(var(--w) * 0.09);
+  left: calc(var(--w) * 0.09);
+}
+
+/* ---------- the table ---------- */
+
+.lc-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 6px;
+}
+
+/* The other hand, face down, as a small fan. */
+.lc-foe {
+  --w: 34px;
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: calc(var(--w) * 1.45 + 8px);
+}
+
+.lc-foe .lc-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  --w: inherit;
+  transform-origin: 50% 100%;
+}
+
+/* "Catch!": over the other hand, while they hold one card they did not call. */
+.lc-catch {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  left: 50%;
+  min-width: 120px;
+  min-height: 48px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+  animation: lc-catch 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes lc-catch {
+  to {
+    transform: translateX(-50%) scale(1.06);
+  }
+}
+
+.lc-table {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+/* The draw pile: two backs, a little apart, over the number of cards in it. */
+.lc-pile {
+  --w: 78px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lc-stack {
+  position: relative;
+  display: block;
+  width: var(--w);
+  height: calc(var(--w) * 1.45);
+}
+
+.lc-stack .lc-card {
+  position: absolute;
+  inset: 0;
+  --w: inherit;
+}
+
+.lc-stack .lc-card:first-child {
+  transform: translate(3px, 3px) rotate(3deg);
+}
+
+.lc-pile small {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lc-pile.go .lc-stack .lc-card:last-child {
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    0 0 0 3px var(--accent);
+}
+
+.lc-pile.go small {
+  color: var(--accent);
+}
+
+.lc-pile:disabled {
+  cursor: default;
+}
+
+.lc-pile:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+/* The discard pile: its top card, ringed with the colour to match. */
+.lc-discard {
+  --w: 78px;
+  --want: transparent;
+  position: relative;
+  width: var(--w);
+  height: calc(var(--w) * 1.45);
+  margin-bottom: 19px;
+}
+
+.lc-discard .lc-card {
+  position: absolute;
+  inset: 0;
+  --w: inherit;
+}
+
+.lc-discard::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: calc(var(--w) * 0.17 + 8px);
+  border: 3px solid var(--want);
+  pointer-events: none;
+  transition: border-color 0.2s;
+}
+
+.lc-discard.sun {
+  --want: var(--lc-sun);
+}
+
+.lc-discard.leaf {
+  --want: var(--lc-leaf);
+}
+
+.lc-discard.wave {
+  --want: var(--lc-wave);
+}
+
+.lc-discard.flame {
+  --want: var(--lc-flame);
+}
+
+/* What the other player just did, in words. */
+.lc-told {
+  flex: none;
+  min-height: 20px;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What to do now: the colour or the card to match, or who the game waits for. */
+.lc-line {
+  flex: none;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 2px solid rgba(246, 242, 255, 0.14);
+  background: rgba(246, 242, 255, 0.05);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.lc-line.go {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--ink);
+}
+
+.lc-line > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-line b {
+  color: var(--want);
+}
+
+.lc-line svg {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px -2px 0;
+  fill: var(--want);
+}
+
+.lc-line .sun {
+  --want: var(--lc-sun);
+}
+
+.lc-line .leaf {
+  --want: var(--lc-leaf);
+}
+
+.lc-line .wave {
+  --want: var(--lc-wave);
+}
+
+.lc-line .flame {
+  --want: var(--lc-flame);
+}
+
+.lc-dots {
+  flex: none;
+  display: flex;
+  gap: 5px;
+}
+
+.lc-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: lc-wait 1s ease-in-out infinite;
+}
+
+.lc-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.lc-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes lc-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- your hand ---------- */
+
+/*
+ * The hand is a fan. main.ts places each card and sets --w and the height:
+ * past about 12 cards the cards get smaller and closer, and a hand too big
+ * for one fan takes two rows.
+ */
+.lc-hand {
+  --w: 70px;
+  position: relative;
+  flex: none;
+  height: 132px;
+  margin-top: 8px;
+  touch-action: none;
+}
+
+.lc-hand .lc-card {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  transform-origin: 50% 100%;
+  transition:
+    transform 0.16s ease-out,
+    filter 0.2s,
+    box-shadow 0.16s;
+  cursor: pointer;
+}
+
+.lc-hand .lc-card.dim {
+  filter: saturate(0.35) brightness(0.6);
+  cursor: default;
+}
+
+.lc-hand .lc-card.up {
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 8px 10px rgba(0, 0, 0, 0.4);
+}
+
+.lc-hand .lc-card:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---------- dock ---------- */
+
+.lc-dock {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+  padding: 10px 0 18px;
+}
+
+.lc-dock .btn {
+  min-height: 54px;
+  padding: 10px 8px;
+  white-space: nowrap;
+}
+
+/* The "Last card!" call: off, then lit once pressed. */
+.lc-call[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+}
+
+.lc-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 18px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.lc-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.lc-why,
+.lc-note {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.lc-note {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.lc-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.lc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 4px 0;
+}
+
+.lc-stats:empty {
+  display: none;
+}
+
+.lc-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lc-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- colour sheet ---------- */
+
+.lc-shade {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  animation: lc-fade 0.2s ease-out;
+}
+
+.lc-sheet {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 0;
+  width: 100%;
+  max-width: 560px;
+  padding: 18px calc(14px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(14px + var(--safe-left));
+  border-radius: 24px 24px 0 0;
+  background: var(--panel);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  animation: lc-rise 0.24s cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+
+.lc-sheet h3 {
+  margin-bottom: 12px;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.lc-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.lc-swatches button {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--k);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.lc-swatches button:active {
+  transform: scale(0.96);
+}
+
+.lc-swatches svg {
+  width: 26px;
+  height: 26px;
+  fill: #fff;
+}
+
+@keyframes lc-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lc-rise {
+  from {
+    transform: translate(-50%, 100%);
+  }
+}
+
+/* ---------- online ---------- */
+
+/* The your-turn alert drops in from the top of the table. */
+.lc-toast {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  max-width: calc(100% - 16px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -12px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1),
+    opacity 0.2s,
+    visibility 0.35s;
+}
+
+.lc-toast.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.lc-banner {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--amber);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.lc-banner.ok {
+  border-color: var(--accent);
+}
+
+.lc-banner:not([hidden]) + .lc-toast {
+  top: 48px;
+}
+
+/* ---------- pass card ---------- */
+
+.lc-cover {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 28px;
+  text-align: center;
+}
+
+.lc-cover .lc-mini {
+  width: 44px;
+  height: 62px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.75),
+    0 4px 0 var(--cd);
+}
+
+.lc-cover h2 {
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.lc-cover p {
+  min-height: 24px;
+  max-width: 340px;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.lc-cover .btn {
+  max-width: 320px;
+  margin-top: 16px;
+}
+
+/* ---------- home ---------- */
+
+#lc-home .lc-pl {
+  flex: none;
+}
+
+/* ---------- small and sideways screens ---------- */
+
+@media (max-height: 740px) {
+  .lc-pile,
+  .lc-discard {
+    --w: 66px;
+  }
+
+  .lc-pl {
+    min-height: 52px;
+    padding: 6px 10px;
+  }
+}
+
+/* A phone on its side: the table on the left, your hand and the buttons on the right. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .lc-main {
+    max-width: 960px;
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .lc-top,
+  .lc-bottom {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lc-bottom {
+    justify-content: flex-end;
+  }
+
+  .lc-players {
+    margin: 0 0 4px;
+  }
+
+  .lc-pl {
+    min-height: 48px;
+    padding: 4px 10px;
+  }
+
+  .lc-pile,
+  .lc-discard {
+    --w: 50px;
+  }
+
+  .lc-discard {
+    margin-bottom: 19px;
+  }
+
+  .lc-foe {
+    --w: 26px;
+  }
+
+  .lc-line {
+    min-height: 40px;
+  }
+
+  .lc-told {
+    display: none;
+  }
+
+  .lc-dock {
+    padding-bottom: 10px;
+  }
+
+  /* The result needs the room the hand had. */
+  .lc-main.over .lc-hand {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-dots i,
+  .lc-catch,
+  .lc-shade,
+  .lc-sheet,
+  .lc-result {
+    animation: none;
+  }
+
+  .lc-hand .lc-card,
+  .lc-toast {
+    transition: none;
+  }
+}
