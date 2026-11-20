@@ -554,6 +554,20 @@ export async function lcOnline(a: Browser, b: Browser, origin: string, atMenu: (
   const both = [a, b];
   const on = (seat: Seat) => (seat === 0 ? a : b);
 
+  // Each phone records its toasts as they show: a toast lasts 2.2 s, and the
+  // slower phone can keep the check waiting past that.
+  for (const p of both) {
+    p.eval(`() => {
+      window.__lcToasts = [];
+      new MutationObserver((rs) => {
+        for (const r of rs)
+          if (r.target.id === "lc-toast" && r.target.classList.contains("on")) window.__lcToasts.push(r.target.textContent);
+      }).observe(document.body, { attributes: true, attributeFilter: ["class"], subtree: true });
+    }`);
+  }
+  const toasted = (p: Browser, text: string) =>
+    p.eval<boolean>(`() => (window.__lcToasts ?? []).includes(${JSON.stringify(text)})`);
+
   // Ana picks Last Card, so Ana plays first.
   a.click(`#tiles a[data-id="${LAST_CARD}"]`);
   await waitFor("both at the table", () => {
@@ -587,10 +601,7 @@ export async function lcOnline(a: Browser, b: Browser, origin: string, atMenu: (
     "the other hand lies face down on both phones",
   );
   const starter = on(sa.turn!);
-  await waitFor(
-    "your-turn toast for the starter",
-    () => toastOn(starter) && starter.text("#lc-toast") === "Your turn",
-  );
+  await waitFor("your-turn toast for the starter", () => toasted(starter, "Your turn"));
   const waiter = on(other(sa.turn!));
   check(
     waiter.text("#lc-line-text") === `Waiting for ${sa.turn === 0 ? "Ana" : "Kai"}` && last(waiter).locked,
