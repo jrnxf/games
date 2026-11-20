@@ -1,0 +1,735 @@
+/* Yacht screens. Its green felt palette applies only while it is open. */
+
+body[data-game="yacht"] {
+  --bg: #0f2a20;
+  --bg-2: #1d4a37;
+  --panel: #173a2c;
+  --ink: #f4f8f1;
+  --muted: #a9c7b8;
+  --line: rgba(244, 248, 241, 0.12);
+  --p1: #ffb545;
+  --p1-dark: #c47a14;
+  --p2: #7ec8ff;
+  --p2-dark: #3d8fd0;
+  --accent: #ffd76a;
+  --on-accent: #2a1f0a;
+  --yt-felt: #1f6b4a;
+  --yt-felt-edge: #0d3b28;
+  --yt-ivory: #fdf8ec;
+  --yt-ivory-edge: #d9cfb6;
+  --yt-pip: #23201a;
+}
+
+#yt-game {
+  padding-left: calc(12px + var(--safe-left));
+  padding-right: calc(12px + var(--safe-right));
+}
+
+#yt-game .bar {
+  padding: 0 4px 0 0;
+  margin-left: -4px;
+}
+
+/* The running score, in the bar: a swatch and a number for each player. */
+.yt-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.yt-tally b {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.yt-tally:empty {
+  display: none;
+}
+
+.yt-pl.s0,
+.yt-mini.s0,
+.yt-cell.s0,
+.yt-tray.s0 {
+  --c: var(--p1);
+  --cd: var(--p1-dark);
+}
+
+.yt-pl.s1,
+.yt-mini.s1,
+.yt-cell.s1,
+.yt-tray.s1 {
+  --c: var(--p2);
+  --cd: var(--p2-dark);
+}
+
+/* A player's colour: a small rounded die. */
+.yt-mini {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--c);
+  box-shadow: inset 0 -2px 0 var(--cd);
+}
+
+.yt-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- scorecard ---------- */
+
+.yt-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.yt-card {
+  flex: 1;
+  min-height: 0;
+  max-height: 720px;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+
+.yt-row {
+  --cols: 1fr 76px 76px;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 44px;
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: stretch;
+  padding: 0 0 0 14px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.yt-head {
+  border-top: 0;
+}
+
+.yt-label {
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.yt-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.2s;
+}
+
+/* The column of the player on turn wears a hint of their colour. */
+.yt-cell.on {
+  background: color-mix(in srgb, var(--c) 9%, transparent);
+}
+
+.yt-head .yt-cell {
+  gap: 6px;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.yt-head .yt-cell b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yt-head .yt-cell.on {
+  color: var(--c);
+}
+
+/* What this roll would score in an open box: faint gold, and dimmer for a zero. */
+.yt-cell.can {
+  color: color-mix(in srgb, var(--accent) 85%, transparent);
+  font-weight: 700;
+}
+
+.yt-cell.can.zero {
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.yt-row.can {
+  cursor: pointer;
+}
+
+.yt-row.can:active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.yt-row.can:hover .yt-label {
+  color: var(--ink);
+}
+
+/* The box aimed at, waiting for a second tap. */
+.yt-row.pick,
+.yt-row.pick:active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.yt-row.pick .yt-label {
+  color: var(--accent);
+}
+
+.yt-row.pick .yt-cell.can {
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.yt-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.yt-bonus .yt-label,
+.yt-bonus .yt-cell {
+  font-size: 13px;
+}
+
+.yt-bonus .yt-cell small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.yt-bonus .yt-cell.progress {
+  gap: 0;
+}
+
+.yt-bonus,
+.yt-total {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.yt-total {
+  border-top: 2px solid var(--line);
+}
+
+.yt-total .yt-label {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.yt-total .yt-cell {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+/* Extra Yachts: their bonus beside the 50. */
+.yt-extra {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+/* The box just scored lights up for a moment. */
+.yt-cell.just {
+  animation: yt-just 0.9s ease-out;
+}
+
+@keyframes yt-just {
+  0%,
+  30% {
+    background: color-mix(in srgb, var(--c) 40%, transparent);
+  }
+}
+
+/* ---------- dice tray ---------- */
+
+.yt-dock {
+  flex: none;
+  padding: 10px 0 14px;
+}
+
+.yt-tray {
+  padding: 10px 12px 8px;
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 40%, #2a8a60, var(--yt-felt));
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.35),
+    0 4px 0 var(--yt-felt-edge);
+}
+
+.yt-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 22px;
+}
+
+.yt-caption p {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.yt-caption p span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The player on this phone is on turn: their colour leads the caption. */
+.yt-tray.go .yt-caption p {
+  color: var(--c);
+}
+
+.yt-left {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--ink) 75%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.yt-pips {
+  display: flex;
+  gap: 4px;
+}
+
+.yt-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.yt-pips i.on {
+  background: var(--accent);
+}
+
+.yt-dice {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 60px));
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 2px 18px;
+}
+
+.yt-die {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 18%;
+  background: var(--yt-ivory);
+  box-shadow:
+    inset 0 -4px 0 var(--yt-ivory-edge),
+    0 3px 6px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    opacity 0.2s;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.yt-die:disabled {
+  opacity: 1;
+}
+
+.yt-die.can {
+  cursor: pointer;
+}
+
+.yt-die:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.yt-face {
+  position: absolute;
+  inset: 14%;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  place-items: center;
+}
+
+.yt-face i {
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  background: var(--yt-pip);
+  visibility: hidden;
+}
+
+.yt-face i.on {
+  visibility: visible;
+}
+
+/* Before the first roll of a turn: blank dice, waiting. */
+.yt-die.blank {
+  opacity: 0.4;
+}
+
+.yt-die small {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 5px);
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.16s;
+}
+
+/* A held die lifts, wears a gold ring and says so. */
+.yt-die.held {
+  transform: translateY(-6px);
+  box-shadow:
+    inset 0 -4px 0 var(--yt-ivory-edge),
+    0 0 0 3px var(--accent),
+    0 6px 10px rgba(0, 0, 0, 0.35);
+}
+
+.yt-die.held small {
+  opacity: 1;
+}
+
+.yt-die.tumble {
+  animation: yt-tumble 0.45s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.yt-die.tumble:nth-child(2n) {
+  animation-name: yt-tumble-b;
+}
+
+@keyframes yt-tumble {
+  0% {
+    transform: translateY(-14px) rotate(-200deg) scale(0.8);
+  }
+  60% {
+    transform: translateY(2px) rotate(12deg) scale(1.03);
+  }
+  80% {
+    transform: translateY(0) rotate(-4deg);
+  }
+}
+
+@keyframes yt-tumble-b {
+  0% {
+    transform: translateY(-10px) rotate(220deg) scale(0.8);
+  }
+  60% {
+    transform: translateY(2px) rotate(-10deg) scale(1.03);
+  }
+  80% {
+    transform: translateY(0) rotate(4deg);
+  }
+}
+
+.yt-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.yt-actions .btn {
+  padding: 12px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-dots {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.yt-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: yt-wait 1s ease-in-out infinite;
+}
+
+.yt-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.yt-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes yt-wait {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------- result ---------- */
+
+.yt-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0 4px;
+  animation: screen-in 0.3s ease-out;
+}
+
+.yt-result h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.yt-why,
+.yt-note {
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.yt-note {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.yt-result-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ---------- online ---------- */
+
+/* The your-turn alert drops in from the top of the card, as golf's does. */
+.yt-toast {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  max-width: calc(100% - 16px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -12px);
+  transition:
+    transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1),
+    opacity 0.2s,
+    visibility 0.35s;
+}
+
+.yt-toast.on {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.yt-banner {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--amber);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.yt-banner.ok {
+  border-color: var(--accent);
+}
+
+/* Keep the your-turn alert clear of a connection banner. */
+.yt-banner:not([hidden]) + .yt-toast {
+  top: 48px;
+}
+
+/* ---------- sizes ---------- */
+
+@media (max-width: 370px) {
+  .yt-row {
+    --cols: 1fr 68px 68px;
+    padding-left: 12px;
+  }
+
+  .yt-label {
+    font-size: 14px;
+  }
+}
+
+/* A phone on its side: the card on the left, the dice on the right. */
+@media (orientation: landscape) and (max-height: 520px) {
+  #yt-game .bar {
+    height: 48px;
+  }
+
+  .yt-main {
+    max-width: 900px;
+    flex-direction: row;
+    gap: 16px;
+    padding-bottom: 8px;
+  }
+
+  .yt-play {
+    flex: 1.2;
+  }
+
+  .yt-dock {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .yt-label,
+  .yt-head .yt-cell,
+  .yt-bonus .yt-label,
+  .yt-bonus .yt-cell {
+    font-size: 12px;
+  }
+
+  .yt-cell {
+    font-size: 14px;
+  }
+
+  .yt-total .yt-cell {
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yt-die.tumble,
+  .yt-cell.just,
+  .yt-dots i {
+    animation: none;
+  }
+}
+
+/* ---------- home ---------- */
+
+/* The session's two players. */
+.yt-pl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.yt-pl .yt-mini {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  box-shadow: inset 0 -3px 0 var(--cd);
+}
+
+.yt-pl > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.yt-name {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yt-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}

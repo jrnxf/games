@@ -8,6 +8,7 @@ import miniGolf from "../games/mini-golf/info.ts";
 import reversi from "../games/reversi/info.ts";
 import seaBattle from "../games/sea-battle/info.ts";
 import ultimateTicTacToe from "../games/ultimate-tic-tac-toe/info.ts";
+import yacht from "../games/yacht/info.ts";
 import type { GameSession, Mode } from "./session.ts";
 
 /** What a game's code exports. The shell loads it the first time the game opens. */
@@ -54,6 +55,7 @@ export const GAMES: readonly GameInfo[] = [
   mancala,
   seaBattle,
   ultimateTicTacToe,
+  yacht,
 ];
 
 /** Why `info` can't run in `mode`, in a few words, or null when it can. */
