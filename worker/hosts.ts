@@ -3,6 +3,7 @@
 
 import { fourHost } from "../src/games/connect-four/core/host.ts";
 import { boxesHost } from "../src/games/dots-and-boxes/core/host.ts";
+import { lastCardHost } from "../src/games/last-card/core/host.ts";
 import { mancalaHost } from "../src/games/mancala/core/host.ts";
 import { golfHost } from "../src/games/mini-golf/core/host.ts";
 import { reversiHost } from "../src/games/reversi/core/host.ts";
@@ -20,4 +21,5 @@ export const HOSTS: Hosts = {
   "sea-battle": seaHost,
   "ultimate-tic-tac-toe": ultimateHost,
   yacht: yachtHost,
+  "last-card": lastCardHost,
 };
