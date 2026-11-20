@@ -4,7 +4,8 @@
 // the computer (with a reload on its turn), a pass & play win, the running
 // score, a reload mid-game, the trip back to the menu, and playing offline.
 // The other board games play the same way from their own files (reversi.ts,
-// dots-and-boxes.ts, mancala.ts, sea-battle.ts, ultimate-tic-tac-toe.ts).
+// dots-and-boxes.ts, mancala.ts, sea-battle.ts, ultimate-tic-tac-toe.ts,
+// yacht.ts).
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
@@ -16,6 +17,7 @@ import { mancalaOffline, mancalaPassAndPlay, mancalaSolo } from "./mancala.ts";
 import { reversiOffline, reversiPassAndPlay, reversiSolo } from "./reversi.ts";
 import { seaOffline, seaPassAndPlay, seaSolo } from "./sea-battle.ts";
 import { ultimateOffline, ultimatePassAndPlay, ultimateSolo } from "./ultimate-tic-tac-toe.ts";
+import { yachtOffline, yachtPassAndPlay, yachtSolo } from "./yacht.ts";
 
 const PORT = await serverPort();
 const ORIGIN = `http://127.0.0.1:${PORT}`;
@@ -94,8 +96,8 @@ try {
   await waitFor("menu", () => phone.visible("games"));
   check(phone.eval<string>("() => location.pathname") === "/", "the menu is at /");
   check(
-    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 7,
-    "seven game tiles",
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 8,
+    "eight game tiles",
   );
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
@@ -276,6 +278,7 @@ try {
   await mancalaSolo(phone);
   await seaSolo(phone);
   await ultimateSolo(phone);
+  await yachtSolo(phone);
 
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
@@ -363,6 +366,7 @@ try {
   await mancalaPassAndPlay(phone, ORIGIN);
   await seaPassAndPlay(phone, ORIGIN);
   await ultimatePassAndPlay(phone, ORIGIN);
+  await yachtPassAndPlay(phone, ORIGIN);
 
   // Mini golf opens from the same menu, and the browser back button returns.
   phone.click('#tiles a[href="/mini-golf"]');
@@ -414,6 +418,7 @@ try {
   await mancalaOffline(phone, ORIGIN);
   await seaOffline(phone, ORIGIN);
   await ultimateOffline(phone, ORIGIN);
+  await yachtOffline(phone, ORIGIN);
   console.log("menu e2e passed");
 } finally {
   phone.stop();

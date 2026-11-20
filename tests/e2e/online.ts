@@ -7,7 +7,7 @@
 // in a Connect Four game to a win and a rematch. The other board games play
 // between the same two phones from their own files (reversi.ts,
 // dots-and-boxes.ts, mancala.ts, sea-battle.ts,
-// ultimate-tic-tac-toe.ts).
+// ultimate-tic-tac-toe.ts, yacht.ts).
 // Run with `pnpm test:online`.
 
 import { execFileSync, type ChildProcess } from "node:child_process";
@@ -24,6 +24,7 @@ import { MANCALA, mancalaOnline } from "./mancala.ts";
 import { REVERSI, reversiOnline } from "./reversi.ts";
 import { SEA, seaOnline } from "./sea-battle.ts";
 import { ULTIMATE, ultimateOnline } from "./ultimate-tic-tac-toe.ts";
+import { YACHT, yachtOnline } from "./yacht.ts";
 
 const PORT = await serverPort();
 // Its own devtools port too, so two runs of wrangler dev never clash.
@@ -465,7 +466,7 @@ async function uiTest() {
     check(/^[A-Z0-9]{5}$/.test(code), `the menu shows the party code (${code})`);
     check(a.text("#menu-invite-url").endsWith(`/p/${code}`), "the menu shows the invite link");
     check(a.text("#menu-chip-text") === "Online · Waiting for a friend", "the chip says who's missing");
-    for (const id of [GOLF, FOUR, REVERSI, BOXES_ID, MANCALA, SEA, ULTIMATE]) {
+    for (const id of [GOLF, FOUR, REVERSI, BOXES_ID, MANCALA, SEA, ULTIMATE, YACHT]) {
       check(
         tileOff(a, id) && a.text(`${tile(id)} small`) === "Waiting for a friend",
         `${id} waits for a friend`,
@@ -498,6 +499,7 @@ async function uiTest() {
     await mancalaOnline(a, b, ORIGIN, atMenu);
     await seaOnline(a, b, ORIGIN, atMenu);
     await ultimateOnline(a, b, ORIGIN, atMenu);
+    await yachtOnline(a, b, ORIGIN, atMenu);
 
     // Ana picks golf, with Ctrl held: online a tile never opens a new tab (it would push this one out).
     const prevented = a.eval<boolean>(`() => {
