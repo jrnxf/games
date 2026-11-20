@@ -3,6 +3,7 @@
 
 import connectFour from "../games/connect-four/info.ts";
 import dotsAndBoxes from "../games/dots-and-boxes/info.ts";
+import lastCard from "../games/last-card/info.ts";
 import mancala from "../games/mancala/info.ts";
 import miniGolf from "../games/mini-golf/info.ts";
 import reversi from "../games/reversi/info.ts";
@@ -56,6 +57,7 @@ export const GAMES: readonly GameInfo[] = [
   seaBattle,
   ultimateTicTacToe,
   yacht,
+  lastCard,
 ];
 
 /** Why `info` can't run in `mode`, in a few words, or null when it can. */

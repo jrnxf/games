@@ -5,7 +5,7 @@
 // score, a reload mid-game, the trip back to the menu, and playing offline.
 // The other board games play the same way from their own files (reversi.ts,
 // dots-and-boxes.ts, mancala.ts, sea-battle.ts, ultimate-tic-tac-toe.ts,
-// yacht.ts).
+// yacht.ts, last-card.ts).
 // Run with `pnpm test:menu` (builds first, serves with vite preview).
 
 import { execFileSync } from "node:child_process";
@@ -13,6 +13,7 @@ import { computerMove } from "../../src/games/connect-four/core/ai.ts";
 import { canDrop, replay } from "../../src/games/connect-four/core/board.ts";
 import { Browser, check, serverPort, SHOTS, startServer, VIEWPORT, waitFor } from "./browser.ts";
 import { boxesOffline, boxesPassAndPlay, boxesSolo } from "./dots-and-boxes.ts";
+import { lcOffline, lcPassAndPlay, lcSolo } from "./last-card.ts";
 import { mancalaOffline, mancalaPassAndPlay, mancalaSolo } from "./mancala.ts";
 import { reversiOffline, reversiPassAndPlay, reversiSolo } from "./reversi.ts";
 import { seaOffline, seaPassAndPlay, seaSolo } from "./sea-battle.ts";
@@ -96,8 +97,8 @@ try {
   await waitFor("menu", () => phone.visible("games"));
   check(phone.eval<string>("() => location.pathname") === "/", "the menu is at /");
   check(
-    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 8,
-    "eight game tiles",
+    phone.eval<number>(`() => document.querySelectorAll("#tiles .tile").length`) === 9,
+    "nine game tiles",
   );
   check(phone.text("#menu-chip-text") === "Solo · Zoe", "the chip shows the session");
   check(
@@ -197,12 +198,20 @@ try {
   phone.screenshot("c4-solo-turn");
 
   // Zoe's second chip, then a reload while the computer is still thinking.
-  await dropIn(0);
-  const pending = phone.eval<C4State | null>(`() => {
-    const s = window.__connectFour.state();
-    if (!s.thinking) return null;
-    setTimeout(() => location.reload(), 0);
-    return s;
+  // One page script drops and reloads, so a slow test machine can't miss the think time.
+  while (c4().col > 0) phone.click("#c4-left");
+  const pending = phone.eval<C4State | null>(`async () => {
+    const before = window.__connectFour.state().moves.length;
+    document.getElementById("c4-drop").click();
+    for (let i = 0; i < 1000; i++) {
+      const s = window.__connectFour.state();
+      if (s.thinking && s.moves.length === before + 1) {
+        setTimeout(() => location.reload(), 0);
+        return s;
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    return null;
   }`);
   check(pending, "the reload lands during the computer's turn");
   await waitFor("home after reload", () => phone.visible("c4-home"));
@@ -279,6 +288,7 @@ try {
   await seaSolo(phone);
   await ultimateSolo(phone);
   await yachtSolo(phone);
+  await lcSolo(phone);
 
   // Switch to pass & play: the last name is already filled in.
   phone.click("#menu-chip");
@@ -367,6 +377,7 @@ try {
   await seaPassAndPlay(phone, ORIGIN);
   await ultimatePassAndPlay(phone, ORIGIN);
   await yachtPassAndPlay(phone, ORIGIN);
+  await lcPassAndPlay(phone, ORIGIN);
 
   // Mini golf opens from the same menu, and the browser back button returns.
   phone.click('#tiles a[href="/mini-golf"]');
@@ -419,6 +430,7 @@ try {
   await seaOffline(phone, ORIGIN);
   await ultimateOffline(phone, ORIGIN);
   await yachtOffline(phone, ORIGIN);
+  await lcOffline(phone, ORIGIN);
   console.log("menu e2e passed");
 } finally {
   phone.stop();
