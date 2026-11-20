@@ -64,17 +64,21 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 
 - **Online**: amber is the party's maker, sky the friend, and whoever picked the game rolls first. The host rolls the dice and keeps the seed, so no phone can choose or predict a roll. On your friend's turn you see their rolls and their held dice live, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
 
+**Last Card** (`/last-card`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. It is a shedding card game of the Crazy Eights family. The deck has 108 cards in four colours: sun, leaf, wave and flame. Each player gets 7 cards, and one card starts the discard pile. On your turn, play a card that matches the top card by colour, number or symbol, or play a Wild. A Skip or a Reverse gives you another turn. A Draw Two makes the other player draw 2 cards, and you play again. A Wild lets you pick the next colour, and a Wild Draw Four also makes the other player draw 4. You may draw a card at any time on your turn. If the drawn card fits, play it or keep it. The cards that do not fit are dimmed. Tap a card to lift it, then tap it again or press Play. When you play your second-to-last card, press "Last card!" first. If you forget, the other player may press Catch! before their next move, and you draw 2 cards. The first player with no cards wins. You go first in the first game, then the first player alternates. The game saves after every move and keeps a running score in the top bar. The result shows the cards played, the cards drawn and the cards left in the other hand.
+
+- **Online**: coral is the party's maker, teal the friend, and whoever picked the game plays first. Each phone sees only its own hand. You get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
+
 ## Test
 
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe and Yacht, plus Yacht's dice
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card, plus Yacht's dice
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
-pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe and Yacht to a win and a rematch, menu, reconnect, leave
+pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card to a win and a rematch, menu, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe and Yacht solo vs the computer and pass & play, resume, rematch, offline
+pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card solo vs the computer and pass & play, resume, rematch, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.
