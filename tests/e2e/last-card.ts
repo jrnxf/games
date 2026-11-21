@@ -301,17 +301,19 @@ export async function lcSolo(phone: Browser) {
     check(played.line === "Computer is thinking", "the line says the computer is thinking");
 
   // Play on until a move hands the turn to the computer, then reload at once.
-  const pending = await waitFor(
+  const atReload = await waitFor(
     "a reload on the computer's turn",
     () =>
-      phone.eval<LastState | null>(`async () => {
+      phone.eval<{ s: LastState; savedMoves: number } | null>(`async () => {
         const t0 = Date.now();
         while (Date.now() - t0 < 4000) {
           const s = window.__last.state();
           if (s.over) return null;
           if (s.thinking && s.turn === 1) {
+            // Read the save in this same tick: a slow reload can let the computer move first.
+            const savedMoves = JSON.parse(localStorage.getItem("last-card.solo")).moves.length;
             setTimeout(() => location.reload(), 0);
-            return s;
+            return { s, savedMoves };
           }
           if (!s.locked) { ${STEP} }
           await new Promise((r) => setTimeout(r, 10));
@@ -320,13 +322,15 @@ export async function lcSolo(phone: Browser) {
       }`),
     60_000,
   );
+  const pending = atReload.s;
+  check(atReload.savedMoves === pending.moves, "the game is saved after every move");
+  // Seed, first and luck stay the same. Replay only the moves before the reload.
   const before = saved(phone, "solo")!;
-  check(before.moves.length === pending.moves, "the game is saved after every move");
   await waitFor("home after reload", () => phone.visible("lc-home"));
   check(phone.visible("lc-resume"), "a solo game in play offers to resume");
   phone.click("#lc-resume");
   await waitFor("the computer's move after the resume", () => last(phone).moves > pending.moves);
-  const b = replay(before.seed, before.first, before.moves)!;
+  const b = replay(before.seed, before.first, before.moves.slice(0, pending.moves))!;
   const expected = choose(viewOf(b, 1), "hard", before.luck!);
   const after = saved(phone, "solo")!;
   // The same move, whatever order its fields are in.
@@ -371,7 +375,8 @@ export async function lcSolo(phone: Browser) {
   phone.click("#lc-again");
   await waitFor("the computer's opening move", () => {
     const s = last(phone);
-    return !s.over && s.first === 1 && s.moves > 0;
+    // After a Skip or a draw it goes again, so wait for Zoe's turn: a later move would save over the game below.
+    return !s.over && s.first === 1 && s.moves > 0 && s.turn === 0 && !s.thinking;
   });
   check(last(phone).wins.join() === end.wins.join(), "the rematch keeps the score");
 

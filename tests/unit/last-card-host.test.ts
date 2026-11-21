@@ -261,10 +261,12 @@ describe("Last Card in a party", () => {
     const m = p.state as LastMatch;
     expect(m.first).toBe(1);
     for (const seat of [0, 1] as const) noLeak(sync(p, seat, "last-card", HOSTS), m, seat);
-    const refused = receive(p, 0, "last-card", { t: "draw", at: 0 }, HOSTS)!;
-    expect(refused.state).toBeUndefined();
-    noLeak(refused.me, m, 0);
+    // The seed is random, and an opening card can change who goes first, so ask the board.
     const turn = boardOf(m).turn;
+    const waiting = other(turn);
+    const refused = receive(p, waiting, "last-card", { t: "draw", at: 0 }, HOSTS)!;
+    expect(refused.state).toBeUndefined();
+    noLeak(refused.me, m, waiting);
     const reply = receive(p, turn, "last-card", { t: "draw", at: 0 }, HOSTS)!;
     noLeak(reply.me, p.state as LastMatch, turn);
     noLeak(reply.others, p.state as LastMatch, other(turn));
