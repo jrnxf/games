@@ -73,7 +73,7 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card, plus Yacht's dice
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card, plus Yacht's dice and their toss
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
 pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card to a win and a rematch, menu, reconnect, leave

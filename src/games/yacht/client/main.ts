@@ -2,8 +2,8 @@
 // online with a friend in a party. The player on turn rolls up to three
 // times, tapping dice to hold them between rolls, then taps a row of the
 // scorecard to aim and taps it again (or presses Score) to fill it. Each
-// action counts and saves at once; the dice then tumble for a moment, a
-// picture of a roll already made. Offline, a game is its seed plus its
+// action counts and saves at once; the dice are then tossed onto the felt
+// (toss.ts), a picture of a roll already made. Offline, a game is its seed plus its
 // actions, so a reload or a trip to the menu picks up where it left off, the
 // computer's pending action included. Online, the host on the server rolls
 // the dice (core/host.ts) and this phone draws what it says.
@@ -46,6 +46,7 @@ import {
 } from "../core/board.ts";
 import { faces, isSeed, newSeed, type Seed } from "../core/dice.ts";
 import { rollsOf } from "../core/host.ts";
+import { toss, type Pose } from "./toss.ts";
 import type { YachtClientMessage, YachtServerMessage, YachtView } from "../core/protocol.ts";
 
 document.body.insertAdjacentHTML("beforeend", screens);
@@ -60,8 +61,6 @@ const COMPUTER_NAME = "Computer";
 const ROLL_MS = 650;
 const HOLD_MS = 650;
 const AIM_MS = 800;
-/** How long the dice tumble after a roll. */
-const TUMBLE_MS = 450;
 const LEVEL_LABELS: Record<Level, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 /** The card's short labels, where the full box name would not fit. */
 const SHORT: readonly string[] = [
@@ -116,7 +115,7 @@ let held = 0;
 let aim: number | null = null;
 /** True while the dice tumble. */
 let busy = false;
-let tumbleTimer = 0;
+let tumbleFrame = 0;
 let thinkTimer = 0;
 
 /** Online: the party's channel for this game, and this phone's seat (amber is 0, sky 1). */
@@ -183,16 +182,83 @@ const HEAD = 0;
 const BONUS_ROW = 1 + SIXES + 1;
 const TOTAL_ROW = rows.length - 1;
 
+// Each die is a cube of six sides. A face shows by turning the cube so that
+// side is on top, and a tossed die turns about its own axis on the way.
+/**
+ * Where each face sits on the cube. Face 1 needs a real turn, not "" or
+ * "none": the CSS puts a translateZ after it, and "none translateZ(...)" is
+ * not valid, so the side would sit flat in the middle of the cube.
+ */
+const SIDE_AT = [
+  "",
+  "rotate(0deg)",
+  "rotateY(90deg)",
+  "rotateX(90deg)",
+  "rotateX(-90deg)",
+  "rotateY(-90deg)",
+  "rotateY(180deg)",
+];
+/** The turn of the cube that puts each face on top. */
+const TOP = [
+  "",
+  "",
+  "rotateY(-90deg)",
+  "rotateX(-90deg)",
+  "rotateX(90deg)",
+  "rotateY(90deg)",
+  "rotateY(180deg)",
+];
+/** The direction light comes from: the top left, toward the player. */
+const LIGHT = { x: -0.35, y: -0.55, z: 0.76 };
+
+interface Cube {
+  lift: HTMLElement;
+  cube: HTMLElement;
+  shadow: HTMLElement;
+  /** The shade over each side, from face 1 to 6. */
+  shades: HTMLElement[];
+  face: number;
+}
+
 const dieEls: HTMLButtonElement[] = [];
+const cubes: Cube[] = [];
 for (let i = 0; i < DICE; i++) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "yt-die";
-  el.innerHTML = `<span class="yt-face">${"<i></i>".repeat(9)}</span><small>Held</small>`;
+  const pips = (f: number) =>
+    Array.from({ length: 9 }, (_, k) => `<i${PIPS[f]!.includes(k) ? ' class="on"' : ""}></i>`).join("");
+  const sides = [1, 2, 3, 4, 5, 6]
+    .map(
+      (f) =>
+        `<span class="yt-side" style="--at:${SIDE_AT[f]}"><span class="yt-face">${pips(f)}</span><span class="yt-shade"></span></span>`,
+    )
+    .join("");
+  const core = [
+    "rotate(0deg)",
+    "rotateY(90deg)",
+    "rotateX(90deg)",
+    "rotateY(180deg)",
+    "rotateY(-90deg)",
+    "rotateX(-90deg)",
+  ]
+    .map((at) => `<span class="yt-core" style="--at:${at}"></span>`)
+    .join("");
+  el.innerHTML = `<span class="yt-shadow"></span><span class="yt-lift"><span class="yt-cube">${sides}${core}</span></span><small>Held</small>`;
   el.addEventListener("click", () => toggleHold(i));
   diceEl.append(el);
   dieEls.push(el);
+  const shades = [...el.querySelectorAll<HTMLElement>(".yt-shade")];
+  cubes.push({
+    lift: el.querySelector(".yt-lift")!,
+    cube: el.querySelector(".yt-cube")!,
+    shadow: el.querySelector(".yt-shadow")!,
+    shades,
+    face: 0,
+  });
 }
+const SIDE_M = SIDE_AT.map((at) => new DOMMatrix(at || "none"));
+const TOP_M = TOP.map((at) => new DOMMatrix(at || "none"));
 
 // ---------- saving ----------
 
@@ -296,9 +362,36 @@ function drawCard(flash = false) {
 const escape = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-function setFace(el: HTMLElement, face: number) {
-  const pips = PIPS[face] ?? [];
-  el.querySelectorAll(".yt-face i").forEach((p, i) => p.classList.toggle("on", pips.includes(i)));
+/** Turns die `i` to show `face` (0 for a blank die), at rest in its slot. */
+function setFace(i: number, face: number) {
+  const c = cubes[i]!;
+  c.face = face;
+  pose(i, null);
+}
+
+/** Puts die `i` at `p` in flight, or at rest in its slot when `p` is null, lit from the top left. */
+function pose(i: number, p: Pose | null) {
+  const c = cubes[i]!;
+  const top = Math.max(1, c.face);
+  const spin = p ? `rotateZ(${p.yaw}deg) rotate3d(${p.axis.x}, ${p.axis.y}, ${p.axis.z}, ${p.spin}deg)` : "";
+  c.cube.style.transform = `${spin} ${TOP[top]}`.trim() || "none";
+  c.lift.style.transform = p ? `translate3d(${p.x}px, ${p.y}px, ${p.h}px)` : "";
+  c.shadow.style.transform = p
+    ? `translate(${p.x + p.h * 0.35}px, ${p.y + p.h * 0.55}px) scale(${1 + p.h * 0.006})`
+    : "";
+  c.shadow.style.opacity = p ? String(Math.max(0.3, 1 - p.h / 120)) : "";
+  dieEls[i]!.classList.toggle("flying", !!p);
+  // Each side is darker the further it turns from the light. At rest only the top shows, unshaded.
+  const m = p ? new DOMMatrix(spin).multiply(TOP_M[top]!) : null;
+  for (let f = 1; f <= 6; f++) {
+    let dark = 0;
+    if (m) {
+      const n = m.multiply(SIDE_M[f]!).transformPoint(new DOMPoint(0, 0, 1, 0));
+      const lit = n.x * LIGHT.x + n.y * LIGHT.y + n.z * LIGHT.z;
+      dark = Math.max(0, Math.min(0.75, (LIGHT.z - lit) * 0.6));
+    }
+    c.shades[f - 1]!.style.opacity = dark ? String(dark) : "";
+  }
 }
 
 function drawDice() {
@@ -310,7 +403,7 @@ function drawDice() {
     el.classList.toggle("held", isHeld);
     el.classList.toggle("can", canHold);
     el.disabled = !canHold;
-    if (!el.classList.contains("tumble")) setFace(el, blank ? 0 : game.dice[i]!);
+    if (!el.classList.contains("tumble")) setFace(i, blank ? 0 : game.dice[i]!);
     el.setAttribute("aria-pressed", String(isHeld));
     el.setAttribute(
       "aria-label",
@@ -389,9 +482,13 @@ function draw(flash = false) {
 // ---------- rolling ----------
 
 function stopTumble() {
-  clearTimeout(tumbleTimer);
+  cancelAnimationFrame(tumbleFrame);
   busy = false;
-  for (const el of dieEls) el.classList.remove("tumble");
+  dieEls.forEach((el, i) => {
+    if (!el.classList.contains("tumble")) return;
+    el.classList.remove("tumble");
+    pose(i, null);
+  });
 }
 
 /**
@@ -408,29 +505,34 @@ function tumble(kept: number, then: () => void) {
   }
   const after = game;
   busy = true;
+  const tosses: { i: number; toss: ReturnType<typeof toss> }[] = [];
   dieEls.forEach((el, i) => {
     if (kept & (1 << i)) return;
-    void el.offsetWidth;
     el.classList.add("tumble");
-    // A blur of faces while it spins: for show only, the roll is already made.
-    setFace(el, 1 + ((i * 7 + game.rolled) % 6));
+    // Each die is thrown toward the face it already rolled.
+    cubes[i]!.face = game.dice[i]!;
+    tosses.push({ i, toss: toss(tosses.length) });
   });
   draw();
-  let ticks = 0;
-  const spin = () => {
+  const start = performance.now();
+  const frame = (now: number) => {
     if (game !== after) return;
-    if (++ticks * 90 < TUMBLE_MS) {
-      dieEls.forEach((el, i) => {
-        if (el.classList.contains("tumble")) setFace(el, 1 + ((i * 5 + ticks * 3 + game.rolled) % 6));
-      });
-      tumbleTimer = window.setTimeout(spin, 90);
+    const t = now - start;
+    let moving = false;
+    for (const { i, toss: k } of tosses) {
+      const lt = Math.max(0, t - k.delay);
+      if (lt < k.dur) moving = true;
+      pose(i, lt < k.dur ? k.at(lt) : null);
+    }
+    if (moving) {
+      tumbleFrame = requestAnimationFrame(frame);
       return;
     }
     stopTumble();
     draw();
     then();
   };
-  tumbleTimer = window.setTimeout(spin, 90);
+  frame(start);
 }
 
 function buzz(pattern: number | number[]) {
