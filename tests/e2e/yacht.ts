@@ -226,6 +226,12 @@ export async function yachtSolo(phone: Browser) {
   const seed = soloSeed(phone);
   check(rolled.tumbling, "all five dice tumble on the first roll");
   check(
+    phone.eval<boolean>(
+      `() => [...document.querySelectorAll("#yt-dice .yt-side, #yt-dice .yt-core")].every((el) => getComputedStyle(el).transform.startsWith("matrix3d"))`,
+    ),
+    "every side of every die sits on the cube, the 1 too",
+  );
+  check(
     one.rolls === 1 && one.dice.join() === faces(seed, 0).join(),
     "the dice land on the faces the game's seed gives",
   );

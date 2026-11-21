@@ -184,10 +184,14 @@ const TOTAL_ROW = rows.length - 1;
 
 // Each die is a cube of six sides. A face shows by turning the cube so that
 // side is on top, and a tossed die turns about its own axis on the way.
-/** Where each face sits on the cube. */
+/**
+ * Where each face sits on the cube. Face 1 needs a real turn, not "" or
+ * "none": the CSS puts a translateZ after it, and "none translateZ(...)" is
+ * not valid, so the side would sit flat in the middle of the cube.
+ */
 const SIDE_AT = [
   "",
-  "",
+  "rotate(0deg)",
   "rotateY(90deg)",
   "rotateX(90deg)",
   "rotateX(-90deg)",
@@ -227,11 +231,11 @@ for (let i = 0; i < DICE; i++) {
   const sides = [1, 2, 3, 4, 5, 6]
     .map(
       (f) =>
-        `<span class="yt-side" style="--at:${SIDE_AT[f] || "none"}"><span class="yt-face">${pips(f)}</span><span class="yt-shade"></span></span>`,
+        `<span class="yt-side" style="--at:${SIDE_AT[f]}"><span class="yt-face">${pips(f)}</span><span class="yt-shade"></span></span>`,
     )
     .join("");
   const core = [
-    "none",
+    "rotate(0deg)",
     "rotateY(90deg)",
     "rotateX(90deg)",
     "rotateY(180deg)",
