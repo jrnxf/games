@@ -1,6 +1,7 @@
 // Yacht rules with no DOM: five dice and a scorecard of 13 boxes each. A turn
 // is up to three rolls, holding any dice between them, then one box scored.
-// After 13 turns each, the higher total wins. A game is its first player plus
+// After 13 turns each, the higher total wins. A solo game has one player and
+// one card, and ends after their 13 turns. A game is its first player plus
 // a list of actions, and a roller that gives the fresh faces of each roll, so
 // it saves and replays exactly (see dice.ts for where the faces come from).
 //
@@ -81,6 +82,8 @@ export interface Scored {
 }
 
 export interface Game {
+  /** One for a solo game, played on card 0 alone. Two otherwise. */
+  players: 1 | 2;
   first: Seat;
   actions: number[];
   turn: Seat;
@@ -105,8 +108,11 @@ const other = (s: Seat) => (1 - s) as Seat;
 
 export const newCard = (): Card => ({ boxes: Array<number | null>(BOXES).fill(null), extra: 0 });
 
-export function newGame(first: Seat = 0): Game {
+/** A new game. A solo game (`players` 1) always starts on seat 0. */
+export function newGame(first: Seat = 0, players: 1 | 2 = 2): Game {
+  if (players === 1) first = 0;
   return {
+    players,
     first,
     actions: [],
     turn: first,
@@ -251,25 +257,32 @@ export function act(g: Game, action: number, roller: Roller): Game | null {
   boxes[action] = points;
   const cards = g.cards.slice() as [Card, Card];
   cards[g.turn] = { boxes, extra: card.extra + (extra ? 1 : 0) };
-  const over = filled(cards[0]) === BOXES && filled(cards[1]) === BOXES;
+  const solo = g.players === 1;
+  const over = filled(cards[0]) === BOXES && (solo || filled(cards[1]) === BOXES);
   const t0 = total(cards[0]);
   const t1 = total(cards[1]);
   return {
     ...g,
     actions: [...g.actions, action],
-    turn: over ? g.turn : other(g.turn),
+    turn: over || solo ? g.turn : other(g.turn),
     rolls: 0,
     cards,
     last: { seat: g.turn, box: action, points, extra },
     over,
-    winner: !over || t0 === t1 ? null : t0 > t1 ? 0 : 1,
-    draw: over && t0 === t1,
+    // A solo game has nobody to beat: only its total counts.
+    winner: !over || solo || t0 === t1 ? null : t0 > t1 ? 0 : 1,
+    draw: over && !solo && t0 === t1,
   };
 }
 
 /** Rebuilds a game from its first player and actions. Returns null if any action is illegal. */
-export function replay(first: Seat, actions: readonly number[], roller: Roller): Game | null {
-  let g: Game | null = newGame(first);
+export function replay(
+  first: Seat,
+  actions: readonly number[],
+  roller: Roller,
+  players: 1 | 2 = 2,
+): Game | null {
+  let g: Game | null = newGame(first, players);
   for (const a of actions) {
     g = act(g, a, roller);
     if (!g) return null;

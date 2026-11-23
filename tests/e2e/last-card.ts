@@ -252,7 +252,13 @@ export async function lcSolo(phone: Browser) {
       start.start.skipped,
     "the table says what the first card is",
   );
-  check(last(phone).others === start.hands[1].length, "the computer's hand shows only as a count");
+  // A skip, reverse or draw 2 turned up first puts the computer on turn, and
+  // it may play before this line: count its hand from the moves saved so far.
+  const now = saved(phone, "solo")!;
+  check(
+    last(phone).others === replay(now.seed, now.first, now.moves)!.hands[1].length,
+    "the computer's hand shows only as a count",
+  );
   check(
     phone.eval<boolean>(
       `() => [...document.querySelectorAll("#lc-foe .lc-card")].every((el) => el.classList.contains("back"))`,
