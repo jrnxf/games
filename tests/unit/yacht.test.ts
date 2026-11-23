@@ -241,6 +241,31 @@ describe("turns", () => {
     expect(g.winner).toBeNull();
   });
 
+  it("ends a solo game after 13 boxes on one card, with no winner", () => {
+    const seed = [8, 7, 6, 5, 4, 3, 2, 1];
+    const roll = (k: number) => faces(seed, k);
+    let g = newGame(1, 1);
+    expect(g.first).toBe(0);
+    for (let turn = 0; turn < 13; turn++) {
+      expect(g.turn).toBe(0);
+      expect(g.over).toBe(false);
+      g = act(g, rollAction(0), roll)!;
+      g = act(
+        g,
+        g.cards[0].boxes.findIndex((b, i) => b === null && canScore(g.cards[0], i, g.dice)),
+        roll,
+      )!;
+    }
+    expect(g.over).toBe(true);
+    expect(g.actions).toHaveLength(26);
+    expect(g.cards[0].boxes.every((b) => b !== null)).toBe(true);
+    expect(g.cards[1].boxes.every((b) => b === null)).toBe(true);
+    expect(g.winner).toBeNull();
+    expect(g.draw).toBe(false);
+    expect(act(g, rollAction(0), roll)).toBeNull();
+    expect(replay(0, g.actions, roll, 1)).toEqual(g);
+  });
+
   it("returns null when an action in the list is illegal", () => {
     expect(replay(0, [CHANCE], rolls([]))).toBeNull();
     expect(replay(0, [rollAction(0)], rolls([[0, 1, 2, 3, 4]]))).toBeNull();

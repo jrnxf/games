@@ -1,11 +1,10 @@
 // Yacht's part of the end-to-end suites, driven by taps on the real dice and
-// scorecard. `pnpm test:menu` plays it solo against the Hard computer (with a
-// reload on its turn) and pass & play (a whole game, a rematch and a reload
+// scorecard. `pnpm test:menu` plays it solo, just you, to a best score (with
+// a reload mid-turn) and pass & play (a whole game, a rematch and a reload
 // with dice held), then resumes it offline. `pnpm test:online` plays it
 // between two phones to a result, with live holds, a reload and a rematch,
 // and a second visit that keeps the score.
 
-import { think } from "../../src/games/yacht/core/ai.ts";
 import { BOXES, isUpper, replay, scoreFor, type Game, type Seat } from "../../src/games/yacht/core/board.ts";
 import { faces, type Seed } from "../../src/games/yacht/core/dice.ts";
 import { Browser, check, VIEWPORT, waitFor } from "./browser.ts";
@@ -27,10 +26,10 @@ interface YachtState {
   totals: [number, number];
   boxes: [(number | null)[], (number | null)[]];
   legal: number[];
-  thinking: boolean;
   busy: boolean;
   wins: [number, number];
-  level: "easy" | "medium" | "hard" | null;
+  solo: boolean;
+  best: number | null;
   me: Seat | null;
   near: Seat;
   locked: boolean;
@@ -120,18 +119,8 @@ function playOn(p: Browser, ms = 8000): boolean {
 const replayed = (first: Seat, actions: number[], seed: Seed): Game =>
   replay(first, actions, (k) => faces(seed, k))!;
 
-/** The solo save's seed: the computer's choices come from it. */
-const soloSeed = (p: Browser) => p.eval<Seed>(`() => JSON.parse(localStorage.getItem("yacht.solo")).seed`);
-
-/** Every computer action so far is the one Hard picks from the game and the seed. */
-function computerAgrees(p: Browser): boolean {
-  const s = yt(p);
-  const seed = soloSeed(p);
-  return s.actions.every((a, i) => {
-    const g = replayed(s.first, s.actions.slice(0, i), seed);
-    return g.turn === 0 || think(g, "hard", seed[0]!).action === a;
-  });
-}
+/** The solo save's seed: the dice come from it. */
+const soloSeed = (p: Browser) => p.eval<Seed>(`() => JSON.parse(localStorage.getItem("yacht.alone")).seed`);
 
 /** The game fits a screen of `size`: no scroll, dice a thumb can hit, the dock in view. */
 function fits(p: Browser, size: string, name: string) {
@@ -174,46 +163,39 @@ function fits(p: Browser, size: string, name: string) {
   p.screenshot(name);
 }
 
-/** Solo against the Hard computer, from the menu and back to it. The session is Zoe, solo, Hard. */
+/** Solo, just you, from the menu and back to it. The session is Zoe, solo. */
 export async function yachtSolo(phone: Browser) {
-  check(
-    phone.text(`#tiles a[href="/${YACHT}"] small`) === "Solo · vs computer",
-    "Yacht plays solo, against the computer",
-  );
+  check(phone.text(`#tiles a[href="/${YACHT}"] small`) === "Solo · just you", "Yacht plays solo, just you");
   phone.click(`#tiles a[href="/${YACHT}"]`);
   await waitFor("yacht home, solo", () => phone.visible("yt-home"));
   check(
-    phone.text("#yt-name-0") === "Zoe" && phone.text("#yt-name-1") === "Computer",
-    "solo Yacht is Zoe against the computer",
+    phone.text("#yt-name-0") === "Zoe" && !phone.visible("yt-pl-1"),
+    "solo Yacht is Zoe alone, with no second player",
   );
-  check(
-    phone.text("#yt-sub-0") === "Amber · goes first" && phone.text("#yt-sub-1") === "Sky · Hard",
-    "Zoe goes first, and the computer's card shows its level",
-  );
+  check(phone.text("#yt-sub-0") === "No best score yet", "a first solo visit has no best score");
   check(!phone.text("#yt-lead").includes("Yahtz"), "the rules use only the name Yacht");
+  check(!phone.text("#yt-lead").includes("computer"), "the rules name no computer");
   phone.screenshot("yt-home-solo");
   phone.click("#yt-start");
   await waitFor("solo game", () => phone.visible("yt-game"));
   const start = yt(phone);
-  check(
-    start.turn === 0 && start.rolls === 0 && !start.thinking && start.level === "hard",
-    "Zoe starts against Hard",
-  );
+  check(start.solo && start.turn === 0 && start.rolls === 0, "Zoe starts a solo game");
   check(
     openRows(phone) === 0 && disabled(phone, "yt-score") && phone.text("#yt-roll") === "Roll",
     "before the first roll no box is open, and Roll is the only move",
   );
   check(
-    cellText(phone, rowOf(0), 0) === "" &&
-      cellText(phone, TOTAL_ROW, 0) === "0" &&
-      cellText(phone, TOTAL_ROW, 1) === "0",
+    cellText(phone, rowOf(0), 0) === "" && cellText(phone, TOTAL_ROW, 0) === "0",
     "the card starts empty",
   );
   check(
     phone.text("#yt-card > :nth-child(1) > .yt-cell:nth-of-type(2)") === "You" &&
-      phone.text("#yt-card > :nth-child(1) > .yt-cell:nth-of-type(3)") === "Computer",
-    "the columns are You and Computer",
+      phone.eval<number>(
+        `() => [...document.querySelectorAll("#yt-card > :nth-child(1) > .yt-cell")].filter((el) => el.offsetWidth > 0).length`,
+      ) === 1,
+    "the card has one column, You",
   );
+  check(phone.text("#yt-status") === "Turn 1 of 13", "the status counts the turns");
 
   // The first roll: the dice tumble, then land on faces the seed picked.
   const rolled = phone.eval<{ tumbling: boolean; label: string }>(`async () => {
@@ -288,45 +270,9 @@ export async function yachtSolo(phone: Browser) {
     "the Score button names the box",
   );
   phone.screenshot("yt-aim");
-  // Fill it, then follow the computer's turn inside the page: its pauses are
-  // too short to span several browser calls.
-  const turn = phone.eval<{
-    scored: YachtState;
-    locked: boolean;
-    open: number;
-    roll: boolean;
-    dots: boolean;
-    said: string[];
-    steps: number[];
-  }>(`async () => {
-    const api = window.__yacht;
-    document.getElementById("yt-score").click();
-    const status = () => document.getElementById("yt-status").textContent;
-    const scored = api.state();
-    const out = {
-      scored,
-      locked: scored.locked,
-      open: document.querySelectorAll("#yt-card .yt-row.can").length,
-      roll: document.getElementById("yt-roll").disabled,
-      dots: !document.getElementById("yt-dots").hidden,
-      said: [status()],
-      steps: [],
-    };
-    let last = scored.actions.length;
-    const t0 = Date.now();
-    while (Date.now() - t0 < 15000) {
-      const s = api.state();
-      if (out.said.at(-1) !== status()) out.said.push(status());
-      if (s.actions.length !== last) {
-        out.steps.push(Date.now() - t0);
-        last = s.actions.length;
-      }
-      if (s.turn === 0 && !s.busy) break;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    return out;
-  }`);
-  const scored = turn.scored;
+  phone.click("#yt-score");
+  await waitFor("the box", () => yt(phone).actions.length === 4);
+  const scored = yt(phone);
   check(
     scored.boxes[0][box] === points &&
       scored.totals[0] === points &&
@@ -338,108 +284,66 @@ export async function yachtSolo(phone: Browser) {
     "the bonus row shows the upper boxes' progress to 63",
   );
   check(
-    scored.thinking && scored.turn === 1 && turn.locked && turn.open === 0 && turn.roll && turn.dots,
-    "then the computer is up, and Zoe can do nothing",
+    scored.turn === 0 && scored.rolls === 0 && !scored.locked && scored.boxes[1].every((b) => b === null),
+    "then it is Zoe's turn again at once: nobody else plays",
   );
   check(
-    turn.said[0] === "Computer is up" &&
-      turn.said[1] === "Computer is rolling" &&
-      turn.said.at(-1) === "Your turn",
-    `the status follows the computer's turn (${turn.said.join(", ")})`,
+    phone.text("#yt-status") === "Turn 2 of 13" && !phone.visible("yt-dots"),
+    "the status moves to turn 2, with no waiting dots",
   );
-  check(
-    turn.steps.length >= 2 && turn.steps.every((t, i) => t - (turn.steps[i - 1] ?? 0) >= 500),
-    `the computer rolls one roll at a time, with pauses (${turn.steps.join(", ")} ms)`,
-  );
-  const after = yt(phone);
-  check(after.boxes[1].filter((b) => b !== null).length === 1, "the computer fills one box");
-  check(computerAgrees(phone), "each computer action is the one Hard picks from the game and its seed");
   phone.screenshot("yt-solo-turn");
   fits(phone, "360x740x2,mobile,touch", "yt-solo-360");
   fits(phone, "820x1180x2,mobile,touch", "yt-solo-tablet");
   fits(phone, "844x390x2,mobile,touch,landscape", "yt-solo-landscape");
   phone.viewport(VIEWPORT);
 
-  // Zoe plays on until the computer is up, then the page reloads mid-turn.
-  const pending = phone.eval<YachtState | null>(`async () => {
-    const api = window.__yacht;
-    const t0 = Date.now();
-    while (Date.now() - t0 < 20000) {
-      const s = api.state();
-      if (s.thinking && s.rolls > 0 && !s.busy) {
-        setTimeout(() => location.reload(), 0);
-        return s;
-      }
-      if (!s.locked) {
-        if (s.rolls === 0) document.getElementById("yt-roll").click();
-        else {
-          const row = document.querySelector("#yt-card .yt-row.can");
-          row.click();
-          row.click();
-        }
-      }
-      await new Promise((r) => setTimeout(r, 20));
-    }
-    return null;
-  }`);
-  check(pending, "the reload lands in the middle of the computer's turn");
+  // A reload in the middle of a turn, with dice held.
+  await roll(phone);
+  phone.click(dieOf(1));
+  const pending = yt(phone);
+  phone.eval("() => { setTimeout(() => location.reload(), 0); }");
   await waitFor("home after reload", () => phone.visible("yt-home"));
   check(phone.visible("yt-resume"), "a solo game in progress offers to resume");
   phone.click("#yt-resume");
   await waitFor("resumed solo", () => phone.visible("yt-game"));
   const resumed = yt(phone);
   check(
-    resumed.actions.slice(0, pending!.actions.length).join() === pending!.actions.join() &&
-      resumed.boxes.join() === pending!.boxes.join(),
-    "the resumed game has every roll and box",
+    resumed.actions.join() === pending.actions.join() &&
+      resumed.boxes.join() === pending.boxes.join() &&
+      resumed.held === pending.held,
+    "the resumed game has every roll, box and held die",
   );
-  await waitFor(
-    "the computer's next action after the resume",
-    () => yt(phone).actions.length > pending!.actions.length,
-  );
-  check(computerAgrees(phone), "after the resume, the computer plays on the way its seed says");
   phone.screenshot("yt-solo");
 
-  // Zoe rolls once and fills her first open box every turn, and loses.
-  await waitFor("the end of the solo game", () => playOn(phone), 240_000).catch((e: Error) => {
-    // Say where the game stuck, so a slow run is easy to tell from a stuck one.
-    const s = yt(phone);
-    throw new Error(
-      `${e.message}: ${s.actions.length} actions, "${phone.text("yt-status")}", locked ${s.locked}`,
-    );
-  });
-  const lost = yt(phone);
-  const [mine, its] = lost.totals;
+  // Zoe rolls once and fills her first open box every turn, to the end.
+  await waitFor("the end of the solo game", () => playOn(phone), 120_000);
+  const done = yt(phone);
+  const mine = done.totals[0];
   check(
-    lost.boxes.every((c) => c.every((b) => b !== null)),
-    "the game ends with all 26 boxes filled",
+    done.boxes[0].every((b) => b !== null) && done.boxes[1].every((b) => b === null),
+    "the game ends with Zoe's 13 boxes filled, and no second card",
   );
-  check(
-    lost.winner === 1 && its > mine && lost.wins.join() === "0,1",
-    `Hard beats a player who never looks (${its} to ${mine})`,
-  );
-  check(computerAgrees(phone), "every computer action in the game came from its seed");
-  check(phone.text("#yt-result-title") === "Computer wins!", "the result names the computer");
-  check(phone.text("#yt-why") === `${its} to ${mine}.`, "one line gives the score");
-  check(
-    cellText(phone, TOTAL_ROW, 0) === String(mine) && cellText(phone, TOTAL_ROW, 1) === String(its),
-    "the totals row matches",
-  );
-  check(phone.text("#yt-tally") === "0–1", "the bar keeps the score: Zoe 0, Computer 1");
+  check(done.actions.length >= 26 && done.winner === null && !done.draw, "a solo game has no winner");
+  check(done.best === mine, `the first finished game is the best score (${mine})`);
+  check(phone.text("#yt-result-title") === "New best!", "the result says it is a new best");
+  check(phone.text("#yt-why") === `${mine} points, your highest yet.`, "one line gives the score");
+  check(cellText(phone, TOTAL_ROW, 0) === String(mine), "the totals row matches");
+  check(phone.text("#yt-tally") === `Best ${mine}`, "the bar shows the best score");
   check(!phone.visible("yt-turn") && phone.visible("yt-result"), "the result replaces the dice");
   phone.screenshot("yt-result");
 
-  // The rematch: the computer goes first this time and rolls on its own.
+  // Play again: a fresh card, Zoe first again.
   phone.click("#yt-again");
-  await waitFor("solo rematch", () => yt(phone).first === 1 && !yt(phone).over);
-  await waitFor("the computer's opening roll", () => yt(phone).actions.length >= 1);
+  await waitFor("solo rematch", () => !yt(phone).over && yt(phone).actions.length === 0);
   check(
-    yt(phone).boxes[0].every((b) => b === null),
-    "the rematch starts a fresh card",
+    yt(phone).first === 0 && yt(phone).boxes[0].every((b) => b === null),
+    "the new game starts a fresh card, and Zoe goes first",
   );
+  await roll(phone);
   phone.click("#yt-leave");
   await waitFor("yacht home", () => phone.visible("yt-home"));
-  check(phone.visible("yt-resume"), "the rematch can be resumed");
+  check(phone.visible("yt-resume"), "the new game can be resumed");
+  check(phone.text("#yt-sub-0") === `Best score ${mine}`, "the home screen shows the best score");
   phone.click("#yt-home [data-menu]");
   await waitFor("menu", () => phone.visible("games"));
 }

@@ -60,7 +60,7 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 
 - **Online**: yellow X is the party's maker, blue O the friend, and whoever picked the game marks first. On your friend's turn you see their aim, dimmed, and you get a "your turn" alert when it is yours. The alert says when you may play in any board. A rematch waits until both players tap it, and the score lasts as long as the party.
 
-**Yacht** (`/yacht`): solo against the computer (Easy, Medium or Hard), two players on one phone, or online with a friend. Roll five dice up to three times a turn. Tap a die to hold it before the next roll. Then fill one box of your scorecard. The card has the 13 modern boxes, from Ones to Chance. An open box shows in faint gold what this roll would score there. Tap a row to aim and press Score, or tap the row again. Score 63 or more in the upper boxes for a bonus of 35. The bonus row shows your progress, for example 43/63. Each extra Yacht earns 100 more once your Yacht box holds 50, and the forced joker rule applies. After 13 turns each, the higher total wins. A tie counts for nobody. The first player alternates between games. The game saves after every roll and keeps a running score.
+**Yacht** (`/yacht`): solo on your own card for a best score, two players on one phone, or online with a friend. Roll five dice up to three times a turn. Tap a die to hold it before the next roll. Then fill one box of your scorecard. The card has the 13 modern boxes, from Ones to Chance. An open box shows in faint gold what this roll would score there. Tap a row to aim and press Score, or tap the row again. Score 63 or more in the upper boxes for a bonus of 35. The bonus row shows your progress, for example 43/63. Each extra Yacht earns 100 more once your Yacht box holds 50, and the forced joker rule applies. After 13 turns each, the higher total wins. A tie counts for nobody. The first player alternates between games. Solo, you play 13 turns on one card, and the game keeps your best total. The game saves after every roll and keeps a running score.
 
 - **Online**: amber is the party's maker, sky the friend, and whoever picked the game rolls first. The host rolls the dice and keeps the seed, so no phone can choose or predict a roll. On your friend's turn you see their rolls and their held dice live, and you get a "your turn" alert when it is yours. A rematch waits until both players tap it, and the score lasts as long as the party.
 
@@ -73,12 +73,12 @@ pnpm preview        # production build served by `wrangler dev` on :8787, app an
 ```sh
 pnpm lint           # eslint + prettier
 pnpm typecheck      # app, tests and worker
-pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card, plus Yacht's dice and their toss
+pnpm test           # unit tests: golf physics, rules, parties, protocol, golf's host, course bake; the rules, computer and host of Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe and Last Card, the rules and host of Yacht, plus Yacht's dice and their toss
 pnpm test:e2e       # a full 18-hole pass-and-play game in headless Chrome at 390x844, plus offline load
 pnpm test:solo      # a full 18-hole solo round in headless Chrome, then the best round on the home screen
 pnpm test:online    # raw clients, then two phones against `wrangler dev`: party by link and code, golf, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card to a win and a rematch, menu, reconnect, leave
 pnpm test:look      # plays to the Volcano, Sand Alley and Twin Peaks and checks the colours on screen
-pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe, Yacht and Last Card solo vs the computer and pass & play, resume, rematch, offline
+pnpm test:menu      # the start screens, the menu, Connect Four, Reversi, Dots and Boxes, Mancala, Sea Battle, Ultimate Tic-Tac-Toe and Last Card solo vs the computer, Yacht solo for a best score, and all of them pass & play, resume, rematch, offline
 ```
 
 The browser suites drive Chrome through [`chrome-devtools-axi`](https://www.npmjs.com/package/chrome-devtools-axi), which must be on your `PATH`. Set `E2E_SHOTS=<folder>` to keep their screenshots. Cloudflare Workers Builds runs lint, type-check, unit tests and a build on every push.

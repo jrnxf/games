@@ -134,6 +134,15 @@ body[data-game="yacht"] {
   border-top: 0;
 }
 
+/* Solo: one player, one column of scores. */
+.yt-card.alone .yt-row {
+  --cols: 1fr 92px;
+}
+
+.yt-card.alone .yt-cell + .yt-cell {
+  display: none;
+}
+
 .yt-label {
   align-self: center;
   min-width: 0;
@@ -759,7 +768,7 @@ body[data-game="yacht"] {
 
 /* ---------- home ---------- */
 
-/* The session's two players. */
+/* The session's players: two, or one in solo. */
 .yt-pl {
   display: flex;
   align-items: center;

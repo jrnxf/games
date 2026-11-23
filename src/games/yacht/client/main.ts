@@ -1,11 +1,10 @@
-// Yacht's entry: pass-and-play on one phone, solo against the computer, or
-// online with a friend in a party. The player on turn rolls up to three
+// Yacht's entry: pass-and-play on one phone, solo on your own card for a best
+// score, or online with a friend in a party. The player on turn rolls up to three
 // times, tapping dice to hold them between rolls, then taps a row of the
 // scorecard to aim and taps it again (or presses Score) to fill it. Each
 // action counts and saves at once; the dice are then tossed onto the felt
 // (toss.ts), a picture of a roll already made. Offline, a game is its seed plus its
-// actions, so a reload or a trip to the menu picks up where it left off, the
-// computer's pending action included. Online, the host on the server rolls
+// actions, so a reload or a trip to the menu picks up where it left off. Online, the host on the server rolls
 // the dice (core/host.ts) and this phone draws what it says.
 
 import "./styles.css";
@@ -16,7 +15,6 @@ import type { Channel } from "../../../shell/channel.ts";
 import { $, show } from "../../../shell/dom.ts";
 import type { GameSession } from "../../../shell/session.ts";
 import { store as storage } from "../../../shell/storage.ts";
-import { think, type Level } from "../core/ai.ts";
 import {
   ALL_HELD,
   BONUS_AT,
@@ -32,6 +30,7 @@ import {
   canPick,
   canRoll,
   canScore,
+  filled,
   heldOf,
   isUpper,
   newGame,
@@ -54,14 +53,6 @@ document.body.insertAdjacentHTML("beforeend", screens);
 const { save, loadJson } = storage("yacht.");
 const DEFAULT_NAMES = ["Zoe", "Kai"] as const;
 const COLOURS = ["Amber", "Sky"] as const;
-/** In solo the player is amber and the computer sky. */
-const COMPUTER: Seat = 1;
-const COMPUTER_NAME = "Computer";
-/** The computer's pace: a beat before each roll, its holds shown before it rolls, its box shown before it scores. */
-const ROLL_MS = 650;
-const HOLD_MS = 650;
-const AIM_MS = 800;
-const LEVEL_LABELS: Record<Level, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 /** The card's short labels, where the full box name would not fit. */
 const SHORT: readonly string[] = [
   "Ones",
@@ -99,12 +90,17 @@ interface Saved {
   seed: number[];
   /** The dice held now, before the next roll. */
   held: number;
-  /** Solo only: the computer's level. */
-  level?: Level;
 }
 
+/** The highest solo total, and the first word of the seed of the game that made it. */
+interface Best {
+  points: number;
+  seed: number;
+}
+
+/** Solo: one player on one card, out for a best score. */
 let solo = false;
-let level: Level = "medium";
+let best: Best | null = null;
 let names: [string, string] = [...DEFAULT_NAMES];
 let wins: [number, number] = [0, 0];
 let seed: Seed = newSeed();
@@ -116,7 +112,6 @@ let aim: number | null = null;
 /** True while the dice tumble. */
 let busy = false;
 let tumbleFrame = 0;
-let thinkTimer = 0;
 
 /** Online: the party's channel for this game, and this phone's seat (amber is 0, sky 1). */
 let channel: Channel<YachtServerMessage, YachtClientMessage> | null = null;
@@ -131,15 +126,13 @@ let banner: ConnectionBanner | null = null;
 let toastTimer = 0;
 
 const other = (seat: Seat) => (1 - seat) as Seat;
-/** Solo, on the computer's turn. */
-const thinking = () => solo && !game.over && game.turn === COMPUTER;
 /** Online, while the friend is on turn or the host has not sent the game yet. */
 const waiting = () => channel !== null && (latest === null || (!game.over && game.turn !== me));
 /** Online, while this phone has no connection: nothing can be sent. */
 const offline = () => channel !== null && !channel.connected;
 
 /** No taps from the player right now. */
-const locked = () => game.over || busy || thinking() || waiting() || offline() || pending !== null;
+const locked = () => game.over || busy || waiting() || offline() || pending !== null;
 
 /** The column nearest the labels: this phone's player online, else amber. */
 const near = (): Seat => (channel ? me : 0);
@@ -266,36 +259,56 @@ function cleanName(raw: string, fallback: string): string {
   return raw.replace(/\s+/g, " ").trim().slice(0, 12) || fallback;
 }
 
-/** Solo and pass & play keep separate saves, so neither overwrites the other. */
-const saveKey = () => (solo ? "solo" : "game");
+/**
+ * Solo and pass & play keep separate saves, so neither overwrites the other.
+ * "alone" is the one-player game: the old "solo" key held games against the
+ * computer, which no longer exists.
+ */
+const saveKey = () => (solo ? "alone" : "game");
 
 function persist() {
   // Online, the game lives on the server.
   if (channel) return;
   const saved: Saved = { names, first: game.first, actions: game.actions, wins, seed: [...seed], held };
-  if (solo) saved.level = level;
   save(saveKey(), JSON.stringify(saved));
 }
+
+function loadBest(): Best | null {
+  const b = loadJson<Best>("best");
+  if (!b || !Number.isInteger(b.points) || b.points < 0 || !Number.isInteger(b.seed)) return null;
+  return b;
+}
+
+/** The game just ended solo: keep its total if it beats the best. */
+function recordBest() {
+  const points = total(game.cards[0]);
+  if (best && best.points >= points) return;
+  best = { points, seed: seed[0]! };
+  save("best", JSON.stringify(best));
+}
+
+/** This finished solo game set the best score. */
+const isBest = () => solo && game.over && best !== null && best.seed === seed[0];
 
 /** The saved game, if it is intact. */
 function savedGame(): (Saved & { game: Game; seed: Seed }) | null {
   const s = loadJson<Saved>(saveKey());
   if (!s || !Array.isArray(s.names) || !Array.isArray(s.actions) || !Array.isArray(s.wins)) return null;
   if ((s.first !== 0 && s.first !== 1) || !isSeed(s.seed)) return null;
-  if (solo && (!s.level || !Object.hasOwn(LEVEL_LABELS, s.level))) return null;
-  const g = replay(s.first, s.actions, (k) => faces(s.seed, k));
+  const g = replay(s.first, s.actions, (k) => faces(s.seed, k), solo ? 1 : 2);
   if (!g) return null;
   const n = (i: 0 | 1) => cleanName(String(s.names[i] ?? ""), DEFAULT_NAMES[i]);
   const w = (i: 0 | 1) => Math.max(0, Math.floor(Number(s.wins[i]) || 0));
   // Held dice are for show: a bad mask holds nothing.
   const h = Number.isInteger(s.held) && s.held >= 0 && s.held < ALL_HELD && g.rolls > 0 ? s.held : 0;
-  return { ...s, names: [n(0), n(1)], wins: [w(0), w(1)], held: h, game: g, seed: s.seed };
+  // Solo has no second player, so its second name stays empty.
+  return { ...s, names: [n(0), solo ? "" : n(1)], wins: [w(0), w(1)], held: h, game: g, seed: s.seed };
 }
 
 // ---------- drawing ----------
 
 /** How this phone talks about `seat`: "You" for its own player in solo and online. */
-const you = (seat: Seat) => (solo ? seat !== COMPUTER : channel !== null && seat === me);
+const you = (seat: Seat) => (solo ? seat === 0 : channel !== null && seat === me);
 
 /** A column's head: "You" for this phone's player, else the name. */
 const headName = (seat: Seat) => (you(seat) ? "You" : names[seat]);
@@ -306,7 +319,9 @@ const canAim = () => !locked() && canPick(game);
 function drawCard(flash = false) {
   const turn = game.turn;
   const live = !game.over && game.rolls > 0;
-  const order: [Seat, Seat] = [near(), other(near())];
+  // Solo has one column: the second is hidden.
+  cardEl.classList.toggle("alone", solo);
+  const order: Seat[] = solo ? [0] : [near(), other(near())];
   order.forEach((seat, col) => {
     const card = game.cards[seat];
     const on = !game.over && turn === seat;
@@ -421,14 +436,14 @@ function drawDice() {
 
 function statusText(): string {
   if (channel && !latest) return "Connecting";
-  if (thinking()) return game.rolls === 0 ? "Computer is up" : "Computer is rolling";
+  if (solo) return `Turn ${filled(game.cards[0]) + 1} of ${BOXES}`;
   if (waiting()) return `${names[other(me)]} is rolling`;
   if (solo || channel) return "Your turn";
   return `${names[game.turn]}'s turn`;
 }
 
 function drawDock() {
-  const wait = thinking() || waiting();
+  const wait = waiting();
   const tray = $("yt-tray");
   tray.className = `yt-tray s${game.turn}`;
   $("yt-status").textContent = statusText();
@@ -444,8 +459,11 @@ function drawDock() {
   // With no rolls left, scoring is the only move: the Score button leads.
   score.classList.toggle("primary", game.rolls === ROLLS && !locked());
   score.classList.toggle("outline", !(game.rolls === ROLLS && !locked()));
-  $("yt-tally").innerHTML =
-    wins[0] + wins[1] > 0
+  $("yt-tally").innerHTML = solo
+    ? best
+      ? `Best <b>${best.points}</b>`
+      : ""
+    : wins[0] + wins[1] > 0
       ? `<i class="yt-mini s0"></i><b>${wins[0]}</b>–<b>${wins[1]}</b><i class="yt-mini s1"></i>`
       : "";
   $("yt-turn").hidden = game.over;
@@ -455,6 +473,17 @@ function drawDock() {
 
 /** The end of a game: who won and by how much, and online, who wants a rematch. */
 function drawResult() {
+  if (solo) {
+    const points = total(game.cards[0]);
+    $("yt-result-title").textContent = isBest() ? "New best!" : `${points} points`;
+    $("yt-why").textContent = isBest()
+      ? `${points} points, your highest yet.`
+      : `Your best is ${best?.points ?? points}.`;
+    $<HTMLButtonElement>("yt-again").disabled = false;
+    $("yt-again").textContent = "Play again";
+    $("yt-note").hidden = true;
+    return;
+  }
   const w = game.winner;
   const [a, b] = [total(game.cards[0]), total(game.cards[1])];
   $("yt-result-title").textContent = w === null ? "It's a tie!" : you(w) ? "You win!" : `${names[w]} wins!`;
@@ -556,6 +585,7 @@ function apply(action: number, then: () => void): boolean {
   }
   held = 0;
   if (game.winner !== null && game.over && !before.over) wins[game.winner] += 1;
+  if (solo && game.over && !before.over) recordBest();
   persist();
   draw(true);
   buzz(game.over ? [20, 40, 20, 40, 60] : 12);
@@ -606,70 +636,33 @@ function scoreBox(box: number) {
     draw();
     return;
   }
-  apply(box, takeTurn);
-}
-
-/**
- * On the computer's turn, plays its next action after a pause, one roll at a
- * time: its holds show before it rolls, and its box before it scores. Each
- * step comes from the game and the seed alone, so a reload mid-turn plays on
- * the same way.
- */
-function takeTurn() {
-  clearTimeout(thinkTimer);
-  if (!thinking() || busy) return;
-  const before = game;
-  const action = think(game, level, seed[0]!).action;
-  const go = (ms: number, step: () => void) => {
-    thinkTimer = window.setTimeout(() => {
-      if (game !== before || !$("yt-game").classList.contains("on")) return;
-      step();
-    }, ms);
-  };
-  if (action >= ROLL) {
-    const keep = heldOf(action);
-    if (keep !== (game.rolls === 0 ? 0 : held) && game.rolls > 0) {
-      // Show the dice it holds, then roll.
-      go(HOLD_MS, () => {
-        held = keep;
-        drawDice();
-        go(ROLL_MS, () => apply(action, takeTurn));
-      });
-      return;
-    }
-    go(ROLL_MS, () => apply(action, takeTurn));
-    return;
-  }
-  go(ROLL_MS, () => {
-    aim = action;
-    drawCard();
-    go(AIM_MS, () => apply(action, takeTurn));
-  });
+  apply(box, () => {});
 }
 
 function startGame(next: Game, keep = 0) {
   stopTumble();
-  clearTimeout(thinkTimer);
   game = next;
   held = keep;
   aim = null;
   show("yt-game");
   draw();
-  takeTurn();
 }
+
+/** A new offline game: solo has one player, pass & play two. */
+const fresh = (first: Seat) => newGame(first, solo ? 1 : 2);
 
 /** A fresh game with the same players. Whoever went second last time starts. */
 function rematch() {
   seed = newSeed();
-  startGame(newGame(other(game.first)));
+  startGame(fresh(other(game.first)));
   persist();
 }
 
-/** The saved game, if it is between the session's players (in solo, at the session's level). */
+/** The saved game, if it is between the session's players. */
 function ourGame() {
   const saved = savedGame();
   if (!saved || saved.names[0] !== names[0] || saved.names[1] !== names[1]) return null;
-  return !solo || saved.level === level ? saved : null;
+  return saved;
 }
 
 /** Who starts a new game: the other player after a game, the same one if nobody played. */
@@ -679,30 +672,34 @@ function nextStarter(saved: ReturnType<typeof ourGame>): Seat {
 }
 
 function goHome() {
-  clearTimeout(thinkTimer);
   stopTumble();
   const saved = ourGame();
   const first = nextStarter(saved);
   $("yt-resume").hidden = !saved || saved.game.over || saved.actions.length === 0;
-  $("yt-lead").textContent =
-    (solo ? "You against the computer. " : "One phone, two players. ") +
-    "Roll five dice up to three times a turn, holding any you like. " +
-    "Then fill one box of your scorecard. After 13 turns each, the higher total wins.";
-  const colours = [COLOURS[0], solo ? `${COLOURS[1]} · ${LEVEL_LABELS[level]}` : COLOURS[1]];
+  $("yt-lead").textContent = solo
+    ? "Just you. Roll five dice up to three times a turn, holding any you like. " +
+      "Then fill one box of your scorecard. After 13 turns, see how high you can score."
+    : "One phone, two players. Roll five dice up to three times a turn, holding any you like. " +
+      "Then fill one box of your scorecard. After 13 turns each, the higher total wins.";
+  $("yt-pl-1").hidden = solo;
   for (const seat of [0, 1] as const) {
     $(`yt-name-${seat}`).textContent = names[seat];
-    $(`yt-sub-${seat}`).textContent = colours[seat] + (seat === first ? " · goes first" : "");
+    $(`yt-sub-${seat}`).textContent = solo
+      ? best
+        ? `Best score ${best.points}`
+        : "No best score yet"
+      : COLOURS[seat] + (seat === first ? " · goes first" : "");
   }
   show("yt-home");
 }
 
 $("yt-form").addEventListener("submit", (e) => {
   e.preventDefault();
-  // Same players keep their running score; new names (or a new level) start from zero.
+  // Same players keep their running score; new names start from zero.
   const saved = ourGame();
   wins = saved ? saved.wins : [0, 0];
   seed = newSeed();
-  startGame(newGame(nextStarter(saved)));
+  startGame(fresh(nextStarter(saved)));
   persist();
 });
 
@@ -852,10 +849,10 @@ $("yt-again").addEventListener("click", () => (channel ? channel.send({ t: "rema
     legal: [...Array(BOXES).keys()].filter(
       (b) => game.rolls > 0 && !game.over && canScore(game.cards[game.turn], b, game.dice),
     ),
-    thinking: thinking(),
     busy,
     wins,
-    level: solo ? level : null,
+    solo,
+    best: best?.points ?? null,
     me: channel ? me : null,
     near: near(),
     locked: locked(),
@@ -876,8 +873,9 @@ export function open(_rest: string, session: GameSession): void {
   }
   solo = session.mode === "solo";
   if (session.mode === "solo") {
-    names = [cleanName(session.names[0], DEFAULT_NAMES[0]), COMPUTER_NAME];
-    level = session.difficulty;
+    // A solo game has no second player: the second name is never shown.
+    names = [cleanName(session.names[0], DEFAULT_NAMES[0]), ""];
+    best = loadBest();
   } else if (session.mode === "pass-and-play") {
     names = [cleanName(session.names[0], DEFAULT_NAMES[0]), cleanName(session.names[1], DEFAULT_NAMES[1])];
   }
@@ -885,8 +883,7 @@ export function open(_rest: string, session: GameSession): void {
 }
 
 export function close(): void {
-  // Only the computer's pause and the tumbling dice run in the background; the game is saved after every action.
-  clearTimeout(thinkTimer);
+  // Only the tumbling dice run in the background; the game is saved after every action.
   stopTumble();
   // Online, the game stays on the server.
   channel = null;
